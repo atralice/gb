@@ -1,0 +1,6 @@
+[test]
+root = "./src"
+preload=[
+  "./test/bun-test-setup.ts", 
+  "./test/customMatchers/index.ts"
+]
