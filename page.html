@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Plan de Fuerza - Toni</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+      :root {
+        --bg: 248 250 252; /* slate-50 */
+      }
+
+      body {
+        background-color: rgb(var(--bg));
+      }
+
+      /* NOTE: Tailwind CDN doesn't support @apply, so custom classes below are minimal */
+      .carousel {
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .carousel-slide {
+        scroll-snap-align: start;
+        flex: 0 0 100%;
+      }
+
+      .tab-trigger[data-active="true"],
+      .pill-trigger[data-active="true"] {
+        background-color: #ffffff;
+        color: #0f172a; /* slate-900 */
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+      }
+
+      #feedback-sheet {
+        will-change: transform, opacity;
+      }
+
+      #feedback-overlay.pointer-events-none {
+        pointer-events: none;
+      }
+    </style>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const modeTriggers = document.querySelectorAll("[data-mode-trigger]");
+        const modeContainers = document.querySelectorAll("[data-mode]");
+        const dayTriggers = document.querySelectorAll("[data-day-trigger]");
+        const dayContainers = document.querySelectorAll("[data-day]");
+        const feedbackSheet = document.getElementById("feedback-sheet");
+        const feedbackOverlay = document.getElementById("feedback-overlay");
+        const feedbackOpenBtn = document.getElementById("open-feedback-button");
+        const feedbackCloseButtons = document.querySelectorAll(
+          "[data-feedback-close]"
+        );
+        const sheetRpeSlider = document.getElementById("sheet-rpe-range");
+        const sheetRpeLabel = document.getElementById("sheet-rpe-label");
+        const dayLabel = document.getElementById("feedback-day-label");
+
+        function setMode(mode) {
+          modeTriggers.forEach((btn) => {
+            const value = btn.getAttribute("data-mode-trigger");
+            btn.setAttribute("data-active", value === mode ? "true" : "false");
+          });
+          modeContainers.forEach((el) => {
+            el.classList.toggle(
+              "hidden",
+              el.getAttribute("data-mode") !== mode
+            );
+          });
+        }
+
+        function setDay(day) {
+          dayTriggers.forEach((btn) => {
+            const value = btn.getAttribute("data-day-trigger");
+            btn.setAttribute("data-active", value === day ? "true" : "false");
+          });
+          dayContainers.forEach((el) => {
+            el.classList.toggle("hidden", el.getAttribute("data-day") !== day);
+          });
+          if (dayLabel) dayLabel.textContent = day;
+        }
+
+        modeTriggers.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            setMode(btn.getAttribute("data-mode-trigger"));
+          });
+        });
+
+        dayTriggers.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            setDay(btn.getAttribute("data-day-trigger"));
+          });
+        });
+
+        // Initial: mobile -> athlete, desktop -> trainer
+        const isDesktop = window.innerWidth >= 1024;
+        setMode(isDesktop ? "trainer" : "athlete");
+        setDay("1");
+
+        // Feedback sheet open/close
+        function openFeedback() {
+          feedbackSheet.classList.remove("translate-y-full", "opacity-0");
+          feedbackSheet.classList.add("translate-y-0", "opacity-100");
+          feedbackOverlay.classList.remove("opacity-0", "pointer-events-none");
+          feedbackOverlay.classList.add("opacity-100");
+        }
+
+        function closeFeedback() {
+          feedbackSheet.classList.add("translate-y-full", "opacity-0");
+          feedbackSheet.classList.remove("translate-y-0", "opacity-100");
+          feedbackOverlay.classList.add("opacity-0", "pointer-events-none");
+          feedbackOverlay.classList.remove("opacity-100");
+        }
+
+        if (feedbackOpenBtn) {
+          feedbackOpenBtn.addEventListener("click", openFeedback);
+        }
+        feedbackOverlay.addEventListener("click", closeFeedback);
+        feedbackCloseButtons.forEach((btn) =>
+          btn.addEventListener("click", closeFeedback)
+        );
+
+        // RPE label inside sheet
+        if (sheetRpeSlider && sheetRpeLabel) {
+          sheetRpeSlider.addEventListener("input", () => {
+            sheetRpeLabel.textContent = sheetRpeSlider.value;
+          });
+        }
+      });
+    </script>
+  </head>
+  <body class="flex min-h-screen flex-col">
+    <!-- HEADER -->
+    <header class="border-b border-slate-200 bg-white px-4 pb-3 pt-4">
+      <div class="mx-auto flex max-w-5xl items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-500">Plan de fuerza · Semana 10</p>
+          <h1 class="text-lg font-semibold text-slate-900">Sesión de hoy</h1>
+        </div>
+
+        <!-- Desktop mode toggle -->
+        <div class="hidden rounded-full bg-slate-100 p-0.5 text-xs md:flex">
+          <button
+            type="button"
+            class="pill-trigger inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium text-slate-500 transition"
+            data-mode-trigger="athlete"
+          >
+            Atleta
+          </button>
+          <button
+            type="button"
+            class="pill-trigger inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium text-slate-500 transition"
+            data-mode-trigger="trainer"
+          >
+            Coach
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile mode toggle -->
+      <div class="mx-auto mt-3 max-w-5xl md:hidden">
+        <div class="flex gap-1 rounded-lg bg-slate-100 p-1">
+          <button
+            type="button"
+            class="tab-trigger inline-flex flex-1 items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition"
+            data-mode-trigger="athlete"
+          >
+            Atleta
+          </button>
+          <button
+            type="button"
+            class="tab-trigger inline-flex flex-1 items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition"
+            data-mode-trigger="trainer"
+          >
+            Coach
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ATHLETE VIEW (mobile-first) -->
+    <main class="flex-1" data-mode="athlete">
+      <div class="mx-auto max-w-md px-4 pb-20 pt-4 md:max-w-2xl">
+        <!-- Day tabs -->
+        <div class="mb-4 flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+          <button
+            type="button"
+            class="tab-trigger inline-flex flex-1 items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition"
+            data-day-trigger="1"
+          >
+            Día 1
+          </button>
+          <button
+            type="button"
+            class="tab-trigger inline-flex flex-1 items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition"
+            data-day-trigger="2"
+          >
+            Día 2
+          </button>
+          <button
+            type="button"
+            class="tab-trigger inline-flex flex-1 items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition"
+            data-day-trigger="3"
+          >
+            Día 3
+          </button>
+        </div>
+
+        <!-- Round indicators only -->
+        <div class="mb-3 flex items-center justify-end gap-1 text-[11px]">
+          <span
+            class="inline-flex h-6 w-6 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-[11px] font-semibold text-emerald-800"
+            >1</span
+          >
+          <span
+            class="inline-flex h-6 w-6 items-center justify-center rounded-full border border-emerald-100 bg-emerald-50 text-[11px] font-semibold text-emerald-700"
+            >2</span
+          >
+          <span
+            class="inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-100 bg-amber-50 text-[11px] font-semibold text-amber-700"
+            >3</span
+          >
+          <span
+            class="inline-flex h-6 w-6 items-center justify-center rounded-full border border-orange-100 bg-orange-50 text-[11px] font-semibold text-orange-700"
+            >4</span
+          >
+          <span
+            class="inline-flex h-6 w-6 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-[11px] font-semibold text-rose-800"
+            >5</span
+          >
+        </div>
+
+        <!-- DAY 1: swipe blocks (Warmup + A + B + C) -->
+        <section data-day="1">
+          <div class="carousel mb-3 flex gap-4 overflow-x-auto pb-2">
+            <!-- WARMUP BLOCK AS SLIDE -->
+            <article
+              class="carousel-slide rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            >
+              <header class="mb-2 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span
+                    class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                    >Calentamiento</span
+                  >
+                  <span class="text-xs text-slate-500"> Movilidad A / B </span>
+                </div>
+              </header>
+
+              <div class="space-y-2 text-xs">
+                <div
+                  class="rounded-lg border border-slate-100 bg-slate-50 px-2 py-2"
+                >
+                  <p class="text-[11px] font-semibold text-slate-800">
+                    Rotación de tronco
+                  </p>
+                  <div class="mt-1 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-800"
+                      >3 x 5 c/lado</span
+                    >
+                  </div>
+                </div>
+                <div
+                  class="rounded-lg border border-slate-100 bg-slate-50 px-2 py-2"
+                >
+                  <p class="text-[11px] font-semibold text-slate-800">
+                    Estiramiento psoas dinámico
+                  </p>
+                  <div class="mt-1 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-800"
+                      >3 x 5 c/lado</span
+                    >
+                  </div>
+                </div>
+                <div
+                  class="rounded-lg border border-slate-100 bg-slate-50 px-2 py-2"
+                >
+                  <p class="text-[11px] font-semibold text-slate-800">
+                    Flexión de tobillo desde altura
+                  </p>
+                  <div class="mt-1 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-800"
+                      >3 x 5 c/lado</span
+                    >
+                  </div>
+                </div>
+                <div
+                  class="rounded-lg border border-slate-100 bg-slate-50 px-2 py-2"
+                >
+                  <p class="text-[11px] font-semibold text-slate-800">
+                    Apertura de pecho contra pared/cajón
+                  </p>
+                  <div class="mt-1 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-800"
+                      >3 x 5 c/lado</span
+                    >
+                  </div>
+                </div>
+                <div
+                  class="rounded-lg border border-slate-100 bg-slate-50 px-2 py-2"
+                >
+                  <p class="text-[11px] font-semibold text-slate-800">
+                    Parabrisas con piernas
+                  </p>
+                  <div class="mt-1 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-800"
+                      >3 x 5 c/lado</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <!-- Block A -->
+            <article
+              class="carousel-slide rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            >
+              <header class="mb-2 flex items-center justify-between">
+                <div class="flex flex-col gap-1">
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                      >Bloque A</span
+                    >
+                    <span
+                      class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
+                      >Fuerza</span
+                    >
+                  </div>
+                  <span class="text-[11px] text-slate-500">
+                    Enfocate en control y buena técnica.
+                  </span>
+                </div>
+              </header>
+
+              <div class="space-y-3 text-xs">
+                <!-- Sentadilla búlgara -->
+                <div
+                  class="rounded-lg border border-slate-100 bg-slate-50 px-2 py-2"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <div>
+                      <p class="text-sm font-semibold text-slate-900">
+                        Sentadilla búlgara
+                      </p>
+                      <p class="mt-0.5 text-[11px] text-slate-500">
+                        Reps por lado, peso total.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      class="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600"
+                    />
+                  </div>
+                  <!-- Sets as gradient boxes -->
+                  <div class="mt-2 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800"
+                      >6 x 15kg</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-emerald-100 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700"
+                      >5 x 25kg</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-orange-100 bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-700"
+                      >2 x 35kg</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-800"
+                      >2 x 35kg</span
+                    >
+                  </div>
+                  <!-- Video -->
+                  <a
+                    href="https://www.youtube.com/watch?v=xxxxxxxxxx"
+                    target="_blank"
+                    class="mt-2 inline-flex items-center text-[11px] font-medium text-indigo-600"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      class="mr-1 h-3 w-3"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M21.8 8.001a2.75 2.75 0 0 0-1.94-1.949C18.26 5.5 12 5.5 12 5.5s-6.26 0-7.86.552A2.75 2.75 0 0 0 2.2 8.001C1.65 9.61 1.65 12 1.65 12s0 2.39.55 3.999a2.75 2.75 0 0 0 1.94 1.949C5.74 18.5 12 18.5 12 18.5s6.26 0 7.86-.552a2.75 2.75 0 0 0 1.94-1.949C22.35 14.39 22.35 12 22.35 12s0-2.39-.55-3.999ZM10.5 14.75v-5.5L15 12l-4.5 2.75Z"
+                      />
+                    </svg>
+                    Ver video
+                  </a>
+                </div>
+
+                <!-- Press hombros arrodillado -->
+                <div
+                  class="rounded-lg border border-slate-100 bg-slate-50 px-2 py-2"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <div>
+                      <p class="text-sm font-semibold text-slate-900">
+                        Press de hombros arrodillado
+                      </p>
+                      <p class="mt-0.5 text-[11px] text-slate-500">
+                        Peso por mancuerna.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      class="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600"
+                    />
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800"
+                      >5 x 10kg</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-emerald-100 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700"
+                      >5 x 15kg</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-orange-100 bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-700"
+                      >5 x 20kg</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-800"
+                      >5 x 20kg</span
+                    >
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center rounded-full bg-slate-100 px-2 py-[2px] text-[10px] font-medium text-slate-600"
+                      >Core activo</span
+                    >
+                  </div>
+                  <a
+                    href="https://www.youtube.com/watch?v=xxxxxxxxxx"
+                    target="_blank"
+                    class="mt-2 inline-flex items-center text-[11px] font-medium text-indigo-600"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      class="mr-1 h-3 w-3"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M21.8 8.001a2.75 2.75 0 0 0-1.94-1.949C18.26 5.5 12 5.5 12 5.5s-6.26 0-7.86.552A2.75 2.75 0 0 0 2.2 8.001C1.65 9.61 1.65 12 1.65 12s0 2.39.55 3.999a2.75 2.75 0 0 0 1.94 1.949C5.74 18.5 12 18.5 12 18.5s6.26 0 7.86-.552a2.75 2.75 0 0 0 1.94-1.949C22.35 14.39 22.35 12 22.35 12s0-2.39-.55-3.999ZM10.5 14.75v-5.5L15 12l-4.5 2.75Z"
+                      />
+                    </svg>
+                    Ver video
+                  </a>
+                </div>
+
+                <!-- Dominada -->
+                <div
+                  class="rounded-lg border border-slate-100 bg-slate-50 px-2 py-2"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <div>
+                      <p class="text-sm font-semibold text-slate-900">
+                        Dominada prono con lastre
+                      </p>
+                      <p class="mt-0.5 text-[11px] text-slate-500">
+                        Agarre prono, rango completo.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      class="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600"
+                    />
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800"
+                      >5 x 0kg</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-emerald-100 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700"
+                      >4 x 5kg</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-orange-100 bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-700"
+                      >3 x 12.2kg</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-800"
+                      >3 x 12.2kg</span
+                    >
+                  </div>
+                  <a
+                    href="https://www.youtube.com/watch?v=xxxxxxxxxx"
+                    target="_blank"
+                    class="mt-2 inline-flex items-center text-[11px] font-medium text-indigo-600"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      class="mr-1 h-3 w-3"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M21.8 8.001a2.75 2.75 0 0 0-1.94-1.949C18.26 5.5 12 5.5 12 5.5s-6.26 0-7.86.552A2.75 2.75 0 0 0 2.2 8.001C1.65 9.61 1.65 12 1.65 12s0 2.39.55 3.999a2.75 2.75 0 0 0 1.94 1.949C5.74 18.5 12 18.5 12 18.5s6.26 0 7.86-.552a2.75 2.75 0 0 0 1.94-1.949C22.35 14.39 22.35 12 22.35 12s0-2.39-.55-3.999ZM10.5 14.75v-5.5L15 12l-4.5 2.75Z"
+                      />
+                    </svg>
+                    Ver video
+                  </a>
+                </div>
+              </div>
+            </article>
+
+            <!-- Block B (plyo, reps-only with x8 style) -->
+            <article
+              class="carousel-slide rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            >
+              <header class="mb-2 flex items-center justify-between">
+                <div class="flex flex-col gap-1">
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                      >Bloque B</span
+                    >
+                    <span
+                      class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700"
+                      >Pliométrico</span
+                    >
+                  </div>
+                  <span class="text-[11px] text-slate-500">
+                    Descanso 30–60s · súper fresco.
+                  </span>
+                </div>
+              </header>
+
+              <div class="space-y-3 text-xs">
+                <!-- Salto unilateral al cajón (no weight) -->
+                <div
+                  class="rounded-lg border border-slate-100 bg-slate-50 px-2 py-2"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-semibold text-slate-900">
+                      Salto unilateral al cajón
+                    </p>
+                    <input
+                      type="checkbox"
+                      class="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600"
+                    />
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800"
+                      >x6</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-emerald-100 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700"
+                      >x6</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-orange-100 bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-700"
+                      >x6</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-800"
+                      >x6</span
+                    >
+                  </div>
+                  <a
+                    href="https://www.youtube.com/watch?v=xxxxxxxxxx"
+                    target="_blank"
+                    class="mt-2 inline-flex items-center text-[11px] font-medium text-indigo-600"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      class="mr-1 h-3 w-3"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M21.8 8.001a2.75 2.75 0 0 0-1.94-1.949C18.26 5.5 12 5.5 12 5.5s-6.26 0-7.86.552A2.75 2.75 0 0 0 2.2 8.001C1.65 9.61 1.65 12 1.65 12s0 2.39.55 3.999a2.75 2.75 0 0 0 1.94 1.949C5.74 18.5 12 18.5 12 18.5s6.26 0 7.86-.552a2.75 2.75 0 0 0 1.94-1.949C22.35 14.39 22.35 12 22.35 12s0-2.39-.55-3.999ZM10.5 14.75v-5.5L15 12l-4.5 2.75Z"
+                      />
+                    </svg>
+                    Ver video
+                  </a>
+                </div>
+
+                <!-- Slam ball (reps only) -->
+                <div
+                  class="rounded-lg border border-slate-100 bg-slate-50 px-2 py-2"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-semibold text-slate-900">
+                      Slam ball
+                    </p>
+                    <input
+                      type="checkbox"
+                      class="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600"
+                    />
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800"
+                      >x8</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-emerald-100 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700"
+                      >x8</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-orange-100 bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-700"
+                      >x8</span
+                    >
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center rounded-full bg-slate-100 px-2 py-[2px] text-[10px] font-medium text-slate-600"
+                      >Explosivo</span
+                    >
+                  </div>
+                  <a
+                    href="https://www.youtube.com/watch?v=xxxxxxxxxx"
+                    target="_blank"
+                    class="mt-2 inline-flex items-center text-[11px] font-medium text-indigo-600"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      class="mr-1 h-3 w-3"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M21.8 8.001a2.75 2.75 0 0 0-1.94-1.949C18.26 5.5 12 5.5 12 5.5s-6.26 0-7.86.552A2.75 2.75 0 0 0 2.2 8.001C1.65 9.61 1.65 12 1.65 12s0 2.39.55 3.999a2.75 2.75 0 0 0 1.94 1.949C5.74 18.5 12 18.5 12 18.5s6.26 0 7.86-.552a2.75 2.75 0 0 0 1.94-1.949C22.35 14.39 22.35 12 22.35 12s0-2.39-.55-3.999ZM10.5 14.75v-5.5L15 12l-4.5 2.75Z"
+                      />
+                    </svg>
+                    Ver video
+                  </a>
+                </div>
+              </div>
+            </article>
+
+            <!-- Block C -->
+            <article
+              class="carousel-slide rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            >
+              <header class="mb-2 flex items-center justify-between">
+                <div class="flex flex-col gap-1">
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                      >Bloque C</span
+                    >
+                    <span
+                      class="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[11px] font-medium text-purple-700"
+                      >Fuerza / Core</span
+                    >
+                  </div>
+                  <span class="text-[11px] text-slate-500">
+                    Controlá core y cadera.
+                  </span>
+                </div>
+              </header>
+
+              <div class="space-y-3 text-xs">
+                <!-- Hip Thrust -->
+                <div
+                  class="rounded-lg border border-slate-100 bg-slate-50 px-2 py-2"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <div>
+                      <p class="text-sm font-semibold text-slate-900">
+                        Hip thrust
+                      </p>
+                      <p class="mt-0.5 text-[11px] text-slate-500">
+                        Concéntrica explosiva.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      class="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600"
+                    />
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800"
+                      >4 x 100kg</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-emerald-100 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700"
+                      >4 x 100kg</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-orange-100 bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-700"
+                      >4 x 100kg</span
+                    >
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center rounded-full bg-slate-100 px-2 py-[2px] text-[10px] font-medium text-slate-600"
+                      >Concéntrica explosiva</span
+                    >
+                  </div>
+                  <a
+                    href="https://www.youtube.com/watch?v=xxxxxxxxxx"
+                    target="_blank"
+                    class="mt-2 inline-flex items-center text-[11px] font-medium text-indigo-600"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      class="mr-1 h-3 w-3"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M21.8 8.001a2.75 2.75 0 0 0-1.94-1.949C18.26 5.5 12 5.5 12 5.5s-6.26 0-7.86.552A2.75 2.75 0 0 0 2.2 8.001C1.65 9.61 1.65 12 1.65 12s0 2.39.55 3.999a2.75 2.75 0 0 0 1.94 1.949C5.74 18.5 12 18.5 12 18.5s6.26 0 7.86-.552a2.75 2.75 0 0 0 1.94-1.949C22.35 14.39 22.35 12 22.35 12s0-2.39-.55-3.999ZM10.5 14.75v-5.5L15 12l-4.5 2.75Z"
+                      />
+                    </svg>
+                    Ver video
+                  </a>
+                </div>
+
+                <!-- Vuelta al mundo KB -->
+                <div
+                  class="rounded-lg border border-slate-100 bg-slate-50 px-2 py-2"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-semibold text-slate-900">
+                      Vuelta al mundo con kettlebell
+                    </p>
+                    <input
+                      type="checkbox"
+                      class="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600"
+                    />
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800"
+                      >5 x 20kg</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-emerald-100 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700"
+                      >5 x 20kg</span
+                    >
+                    <span
+                      class="inline-flex items-center justify-center rounded-md border border-orange-100 bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-700"
+                      >5 x 20kg</span
+                    >
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-1">
+                    <span
+                      class="inline-flex items-center rounded-full bg-slate-100 px-2 py-[2px] text-[10px] font-medium text-slate-600"
+                      >Cadera fija</span
+                    >
+                    <span
+                      class="inline-flex items-center rounded-full bg-slate-100 px-2 py-[2px] text-[10px] font-medium text-slate-600"
+                      >Costillas cerradas</span
+                    >
+                  </div>
+                  <a
+                    href="https://www.youtube.com/watch?v=xxxxxxxxxx"
+                    target="_blank"
+                    class="mt-2 inline-flex items-center text-[11px] font-medium text-indigo-600"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      class="mr-1 h-3 w-3"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M21.8 8.001a2.75 2.75 0 0 0-1.94-1.949C18.26 5.5 12 5.5 12 5.5s-6.26 0-7.86.552A2.75 2.75 0 0 0 2.2 8.001C1.65 9.61 1.65 12 1.65 12s0 2.39.55 3.999a2.75 2.75 0 0 0 1.94 1.949C5.74 18.5 12 18.5 12 18.5s6.26 0 7.86-.552a2.75 2.75 0 0 0 1.94-1.949C22.35 14.39 22.35 12 22.35 12s0-2.39-.55-3.999ZM10.5 14.75v-5.5L15 12l-4.5 2.75Z"
+                      />
+                    </svg>
+                    Ver video
+                  </a>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- DAY 2 & DAY 3 -->
+        <!-- Same pattern as Día 1: Warmup slide + Bloque A/B/C
+             You can copy the markup and plug in actual sets & variants from your spreadsheet. -->
+      </div>
+
+      <!-- Floating feedback button (only when you want) -->
+      <button
+        id="open-feedback-button"
+        type="button"
+        class="fixed bottom-4 right-4 z-20 inline-flex items-center justify-center rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-lg transition hover:bg-indigo-700 active:scale-[0.99]"
+      >
+        Feedback
+      </button>
+    </main>
+
+    <!-- TRAINER VIEW (desktop-friendly) -->
+    <main class="hidden flex-1 px-4 py-4" data-mode="trainer">
+      <div class="mx-auto flex h-full max-w-5xl flex-col">
+        <div class="mb-3 flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-semibold text-slate-900">
+              Editor de ejercicios
+            </h2>
+            <p class="text-xs text-slate-500">
+              Pensado para que el coach actualice fácilmente el plan.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            + Nuevo ejercicio
+          </button>
+        </div>
+
+        <section
+          class="flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+        >
+          <header class="border-b border-slate-100 px-4 py-3">
+            <h3 class="text-sm font-semibold text-slate-900">
+              Semana actual · Semana 10
+            </h3>
+          </header>
+
+          <div class="relative h-full overflow-auto">
+            <table class="w-full min-w-[720px] text-left text-xs">
+              <thead
+                class="sticky top-0 bg-slate-50 text-[11px] text-slate-500"
+              >
+                <tr>
+                  <th class="px-4 py-2 font-medium">Día</th>
+                  <th class="px-2 py-2 font-medium">Bloque</th>
+                  <th class="px-2 py-2 font-medium">Ejercicio</th>
+                  <th class="px-2 py-2 font-medium">Sets / carga</th>
+                  <th class="px-2 py-2 font-medium">Variante</th>
+                  <th class="px-4 py-2 font-medium">Video</th>
+                  <th class="px-4 py-2 text-right font-medium">Acción</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr>
+                  <td class="px-4 py-2 text-slate-700">Día 1</td>
+                  <td class="px-2 py-2 text-slate-700">A</td>
+                  <td class="px-2 py-2 text-slate-800">Sentadilla búlgara</td>
+                  <td class="px-2 py-2 text-slate-700">
+                    6 x 15kg · 5 x 25kg · 2 x 35kg · 2 x 35kg
+                  </td>
+                  <td class="px-2 py-2 text-slate-700">-</td>
+                  <td class="px-4 py-2 text-slate-700">
+                    <a
+                      href="https://www.youtube.com/watch?v=xxxxxxxxxx"
+                      target="_blank"
+                      class="inline-flex items-center text-[11px] text-indigo-600"
+                    >
+                      Video
+                    </a>
+                  </td>
+                  <td class="px-4 py-2 text-right">
+                    <button
+                      type="button"
+                      class="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-[11px] text-slate-700 shadow-sm hover:bg-slate-50"
+                    >
+                      ✏️
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2 text-slate-700">Día 1</td>
+                  <td class="px-2 py-2 text-slate-700">C</td>
+                  <td class="px-2 py-2 text-slate-800">Hip thrust</td>
+                  <td class="px-2 py-2 text-slate-700">
+                    4 x 100kg · 4 x 100kg · 4 x 100kg
+                  </td>
+                  <td class="px-2 py-2 text-slate-700">
+                    Concéntrica explosiva
+                  </td>
+                  <td class="px-4 py-2 text-slate-700">
+                    <a
+                      href="https://www.youtube.com/watch?v=xxxxxxxxxx"
+                      target="_blank"
+                      class="inline-flex items-center text-[11px] text-indigo-600"
+                    >
+                      Video
+                    </a>
+                  </td>
+                  <td class="px-4 py-2 text-right">
+                    <button
+                      type="button"
+                      class="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-[11px] text-slate-700 shadow-sm hover:bg-slate-50"
+                    >
+                      ✏️
+                    </button>
+                  </td>
+                </tr>
+                <!-- Resto de filas siguiendo el mismo patrón -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- FEEDBACK SHEET -->
+    <div
+      id="feedback-overlay"
+      class="fixed inset-0 z-30 bg-black/40 opacity-0 transition-opacity duration-200 pointer-events-none"
+    ></div>
+
+    <section
+      id="feedback-sheet"
+      class="fixed inset-x-0 bottom-0 z-40 max-h-[80vh] translate-y-full opacity-0 rounded-t-2xl border-t border-slate-200 bg-white shadow-xl transition-all duration-200"
+    >
+      <div class="mx-auto max-w-md px-4 pt-3 pb-4 md:max-w-2xl">
+        <header class="mb-2 flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-semibold text-slate-900">
+              Feedback Día <span id="feedback-day-label">1</span>
+            </h2>
+            <p class="text-[11px] text-slate-500">
+              Enviá esto cuando termines. Solo 10–20 segundos.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+            data-feedback-close
+          >
+            Cerrar
+          </button>
+        </header>
+
+        <div class="space-y-4 pt-2 text-xs">
+          <div>
+            <label
+              class="text-[11px] font-medium text-slate-700"
+              for="sheet-rpe-range"
+            >
+              RPE sesión
+            </label>
+            <div class="mt-2">
+              <input
+                id="sheet-rpe-range"
+                type="range"
+                min="1"
+                max="10"
+                step="1"
+                value="7"
+                class="w-full accent-indigo-600"
+              />
+              <p class="mt-1 text-[11px] text-slate-500">
+                Sentido general:
+                <span id="sheet-rpe-label" class="font-semibold text-slate-900"
+                  >7</span
+                >/10
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-[11px] font-medium text-slate-700">
+              ¿Cómo se sintió la sesión?
+            </label>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                class="inline-flex items-center rounded-full border border-dashed border-slate-300 px-3 py-1 text-[11px] text-slate-600"
+              >
+                Muy liviano
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center rounded-full border border-dashed border-slate-300 px-3 py-1 text-[11px] text-slate-600"
+              >
+                Perfecto
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center rounded-full border border-dashed border-slate-300 px-3 py-1 text-[11px] text-slate-600"
+              >
+                Muy pesado
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center rounded-full border border-dashed border-slate-300 px-3 py-1 text-[11px] text-slate-600"
+              >
+                Dolor raro
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center rounded-full border border-dashed border-slate-300 px-3 py-1 text-[11px] text-slate-600"
+              >
+                Fatiga alta
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label
+              for="session-notes"
+              class="text-[11px] font-medium text-slate-700"
+            >
+              Notas rápidas para el coach
+            </label>
+            <textarea
+              id="session-notes"
+              class="mt-2 h-24 w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-900 outline-none ring-0 focus:border-indigo-400"
+              placeholder="Ej: Sentadilla bien, hip thrust muy pesado, algo de molestia en rodilla derecha…"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <button
+            type="button"
+            class="inline-flex w-full items-center justify-center rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 active:scale-[0.99]"
+            data-feedback-close
+          >
+            Enviar feedback
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!--
+      ============================
+      POSSIBLE REACT TYPES / COMPONENTS
+      ============================
+
+      // type ExerciseVariant =
+      //   | "concentrica_explosiva"
+      //   | "core_activo"
+      //   | "cadera_fija"
+      //   | "costillas_cerradas"
+      //   | "explosivo";
+
+      // type ExerciseSet = {
+      //   reps: number;       // for both weight and non-weight
+      //   weightKg?: number;  // undefined => only "x8" style
+      // };
+
+      // type Exercise = {
+      //   id: string;
+      //   day: 1 | 2 | 3;
+      //   block: "warmup" | "A" | "B" | "C";
+      //   name: string;
+      //   note?: string;
+      //   sets: ExerciseSet[];
+      //   variants?: ExerciseVariant[];
+      //   videoUrl?: string;
+      // };
+
+      // type WeekPlan = {
+      //   label: string; // "Semana 10"
+      //   exercises: Exercise[];
+      // };
+
+      // // React pseudo:
+      // // <ExerciseSetPills sets={exercise.sets} />
+      // //   -> decide per-index color (green -> amber -> red)
+      // //   -> render either "4 x 100kg" or "x8"
+    -->
+  </body>
+</html>

@@ -1,14 +1,134 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
 }
 
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------- Core users ----------
+enum UserRole {
+  athlete
+  trainer
+  admin
+}
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
+  id    String   @id @default(uuid())
+  email String   @unique
+  name  String?
+  role  UserRole @default(athlete)
+
+  // Relationships trainer <-> athlete
+  trainerRelationships TrainerAthlete[] @relation("TrainerToAthlete_trainer")
+  athleteRelationships TrainerAthlete[] @relation("TrainerToAthlete_athlete")
+
+  // Workout days
+  trainerWorkoutDays WorkoutDay[] @relation("TrainerWorkoutDays")
+  athleteWorkoutDays WorkoutDay[] @relation("AthleteWorkoutDays")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model TrainerAthlete {
+  trainerId String
+  athleteId String
+
+  trainer User @relation("TrainerToAthlete_trainer", fields: [trainerId], references: [id])
+  athlete User @relation("TrainerToAthlete_athlete", fields: [athleteId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@id([trainerId, athleteId])
+}
+
+// ---------- Programming structure ----------
+
+model WorkoutDay {
+  id          String    @id @default(uuid())
+  weekNumber  Int       @default(1) // e.g. 10 (for grouping)
+  dayIndex    Int // 1, 2, 3
+  label       String? // "Día 1"
+  datePlanned DateTime? // when you actually do it (optional)
+  mainNotes   String?
+  warmupNotes String? // e.g. "Entrada en calor: Movilidad A o B"
+
+  trainerId String
+  athleteId String
+
+  trainer User @relation("TrainerWorkoutDays", fields: [trainerId], references: [id])
+  athlete User @relation("AthleteWorkoutDays", fields: [athleteId], references: [id])
+
+  exercises WorkoutDayExercise[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([athleteId, weekNumber, dayIndex])
+}
+
+// ---------- Exercise library ----------
+
+model Exercise {
+  id           String @id @default(uuid())
+  name         String // e.g. "Sentadilla búlgara"
+  instructions String? // short notes for form cues
+  videoUrl     String? // YouTube link
+  hasWeight    Boolean @default(false)
+  variants     String?
+
+  workoutDayExercises WorkoutDayExercise[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------- Workout day exercises (with sets, feedback) ----------
+
+model WorkoutDayExercise {
+  id          String @id @default(uuid())
+  exerciseId  String
+  workoutDayId String
+
+  block String // warmup / a / b / c
+  order Int // order inside the block (A1=1, A2=2, B1=3, etc.)
+  comment String? // e.g. "Reps por lado y peso total", "El peso equivale por mancuerna"
+
+  // Feedback (per exercise, not per set)
+  sessionDate    DateTime @default(now())
+  rpe            Int? // 1–10
+  generalFeeling String? // free text
+
+  exercise   Exercise   @relation(fields: [exerciseId], references: [id])
+  workoutDay WorkoutDay @relation(fields: [workoutDayId], references: [id])
+  sets       Set[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([workoutDayId, block, order])
+}
+
+// ---------- Sets (multiple sets per exercise) ----------
+
+model Set {
+  id                  String @id @default(uuid())
+  workoutDayExerciseId String
+
+  setIndex Int // 1, 2, 3, 4, 5 (for ordering sets)
+  reps     Int? // e.g. 8 (null if exercise doesn't use reps, like "x")
+  weightKg Float? // e.g. 60 (null if bodyweight or no weight)
+  repsPerSide Boolean @default(false) // true if "Reps por lado" (reps per side)
+
+  // Feedback (per set)
+  rpe            Int? // 1–10
+  notes          String? // free text feedback for this specific set
+
+  workoutDayExercise WorkoutDayExercise @relation(fields: [workoutDayExerciseId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([workoutDayExerciseId, setIndex])
 }

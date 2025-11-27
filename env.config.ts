@@ -28,7 +28,6 @@ function loadEnvConfig(): EnvConfig {
     NEXT_PUBLIC_PLAYWRIGHT: process.env.NEXT_PUBLIC_PLAYWRIGHT,
     NODE_ENV: process.env.NODE_ENV,
   };
-  console.log(rawEnv);
   return envSchema.parse(rawEnv);
 }
 
