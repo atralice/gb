@@ -1,8 +1,9 @@
-import { env } from "./constants";
+import { env as appEnv } from "./constants";
+import { env } from "@/env.config";
 
 // by default, log in all environments but test (except if DEBUG is set)
 const shouldLog = () =>
-  process.env.DEBUG || process.env.NEXT_PUBLIC_PLAYWRIGHT || env("development");
+  env.DEBUG || env.NEXT_PUBLIC_PLAYWRIGHT || appEnv("development");
 
 const log = (...args: unknown[]) => {
   if (shouldLog()) {

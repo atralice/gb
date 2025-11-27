@@ -90,6 +90,13 @@
           {
             "ignore": ["jsx", "global"]
           }
+        ],
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "MemberExpression[object.name='process'][property.name='env']",
+            "message": "Use 'env' from '@/env.config' instead of process.env. Import: import { env } from '@/env.config'"
+          }
         ]
       }
     }

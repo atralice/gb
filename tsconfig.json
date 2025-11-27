@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "es2015",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
@@ -14,11 +18,16 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noErrorTruncation": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@/env.config": [
+        "./env.config"
+      ]
     },
     "plugins": [
       {
@@ -31,7 +40,12 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "test/e2e/testHelpers"
+    "test/e2e/testHelpers",
+    ".next/dev/types/**/*.ts"
   ],
-  "exclude": [".next", "node_modules", "script/dev"]
+  "exclude": [
+    ".next",
+    "node_modules",
+    "script/dev"
+  ]
 }

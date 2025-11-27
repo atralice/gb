@@ -1,41 +1,17 @@
-import assertEnv from "./assertEnv";
+import { env as envConfig } from "@/env.config";
 
 const ENVIRONMENTS = ["development", "staging", "production"] as const;
 
 export type Environment = (typeof ENVIRONMENTS)[number];
 
-// Type guard to check if a value is a valid Environment
-function isEnvironment(value: string): value is Environment {
-  return ENVIRONMENTS.some((env) => env === value);
-}
+export const NEXT_PUBLIC_APP_ENV: Environment = envConfig.NEXT_PUBLIC_APP_ENV;
 
-const rawNextPublicAppEnv = assertEnv(
-  "NEXT_PUBLIC_APP_ENV",
-  process.env.NEXT_PUBLIC_APP_ENV
-);
-
-if (!isEnvironment(rawNextPublicAppEnv)) {
-  throw new Error(
-    `Environment variable 'NEXT_PUBLIC_APP_ENV' is not included in the list of allowed values for ENVIRONMENTS: ${ENVIRONMENTS.join(
-      ", "
-    )}`
-  );
-}
-
-export const NEXT_PUBLIC_APP_ENV: Environment = rawNextPublicAppEnv;
-
-export const env = (env: Environment) => NEXT_PUBLIC_APP_ENV === env;
+export const env = (environment: Environment) =>
+  NEXT_PUBLIC_APP_ENV === environment;
 
 export const pickForEnv = <T>(envUrls: Record<Environment, T>): T => {
   return envUrls[NEXT_PUBLIC_APP_ENV];
 };
-
-// for fetch requests to the old Rails backend
-export const BACKEND_BASE_URL = pickForEnv({
-  development: "http://localhost:3000",
-  staging: "https://localhost:3000",
-  production: "https://localhost:3000",
-});
 
 export const FRONTEND_BASE_URLS = {
   development: "http://localhost:3000",
