@@ -1,26 +1,18 @@
-import { PrismaClient } from "@prisma/client";
 import { env } from "@/env.config";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
-// In development, use a singleton of Prisma to avoid too many db connections from hot reloading Next.js
-// See: https://www.prisma.io/docs/orm/more/help-and-troubleshooting/help-articles/nextjs-prisma-client-dev-practices
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+});
+const prismaClientSingleton = () => {
+  return new PrismaClient({ adapter });
+};
 declare const globalThis: {
-  prismaGlobal: PrismaClient;
+  prismaGlobal: ReturnType<typeof prismaClientSingleton>;
 } & typeof global;
-
-function initializePrismaClient() {
-  const prismaClientSingleton = () => {
-    return new PrismaClient();
-  };
-
-  const prisma = globalThis.prismaGlobal ?? prismaClientSingleton();
-
-  if (env.NEXT_PUBLIC_APP_ENV !== "production") {
-    globalThis.prismaGlobal = prisma;
-  }
-
-  return prisma;
+const prisma = globalThis.prismaGlobal ?? prismaClientSingleton();
+if (env.NEXT_PUBLIC_APP_ENV !== "production") {
+  globalThis.prismaGlobal = prisma;
 }
-
-const prisma = initializePrismaClient();
-
 export default prisma;
