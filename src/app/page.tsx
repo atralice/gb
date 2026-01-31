@@ -1,18 +1,35 @@
-const HomePage = () => {
+import WorkoutCarousel from "@/components/workout/WorkoutCarousel";
+import { getWorkoutDay } from "@/lib/workouts/getWorkoutDay";
+
+export default async function HomePage() {
+  const workoutDay = await getWorkoutDay(1, 10);
+  if (!workoutDay) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-24">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">No workout found</h1>
+          <p className="text-slate-600">
+            Please run the seed script to populate the database.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Next.js!</h1>
-        <p className="text-lg">
-          Get started by editing{" "}
-          <code className="font-mono font-bold bg-gray-100 dark:bg-gray-800 p-1 rounded">
-            src/app/page.tsx
-          </code>
-        </p>
-        <p className="text-red-500">Toni</p>
+    <main className="min-h-screen bg-slate-50 p-2 md:p-4">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-3">
+          <h1 className="text-xl font-bold text-slate-900">
+            {workoutDay.label}
+          </h1>
+          <p className="text-xs text-slate-600">
+            Semana {workoutDay.weekNumber}
+          </p>
+        </div>
+
+        <WorkoutCarousel workoutDay={workoutDay} />
       </div>
     </main>
   );
-};
-
-export default HomePage;
+}

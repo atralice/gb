@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+.carousel {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.carousel-slide {
+  scroll-snap-align: start;
+  flex: 0 0 100%;
+}

@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 export default async function truncateDb() {
   const tables = await prisma.$queryRaw<
     Array<{ tablename: string }>
-  >`SELECT tablename FROM pg_tables WHERE schemaname='public'`;
+  >`SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename != '_prisma_migrations'`;
 
   for (const { tablename } of tables) {
     await prisma.$executeRawUnsafe(

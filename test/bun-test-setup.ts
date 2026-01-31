@@ -16,6 +16,9 @@ await (async () => {
   // mock { cache } from "react"
   await mockImportReactCache();
 
+  // mock next/cache to prevent errors when importing modules that use revalidatePath
+  await mockImportNextCache();
+
   // prevents TypeError: undefined is not an object (evaluating '_react.default.unstable_postpone')
   // from happening when any test imports a file that imports cookies from next/headers
   // even if the file also mocks cookies.  Calling mockCookies() in your test still overrides this,
@@ -49,4 +52,10 @@ async function mockImportServerOnly() {
 async function mockImportReactCache() {
   const mockCache = (fn: any) => fn;
   await mock.module("react", () => ({ cache: mockCache }));
+}
+
+async function mockImportNextCache() {
+  await mock.module("next/cache", () => ({
+    revalidatePath: () => {},
+  }));
 }

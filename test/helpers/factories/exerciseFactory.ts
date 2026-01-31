@@ -11,7 +11,6 @@ function buildAttributes(): Exercise {
     instructions: null,
     videoUrl: null,
     hasWeight: false,
-    variants: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

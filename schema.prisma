@@ -45,14 +45,21 @@ model TrainerAthlete {
 
 // ---------- Programming structure ----------
 
+enum Block {
+  warmup
+  a
+  b
+  c
+  d // in case routines expand
+}
+
 model WorkoutDay {
   id          String    @id @default(uuid())
   weekNumber  Int       @default(1) // e.g. 10 (for grouping)
   dayIndex    Int // 1, 2, 3
   label       String? // "Día 1"
   datePlanned DateTime? // when you actually do it (optional)
-  mainNotes   String?
-  warmupNotes String? // e.g. "Entrada en calor: Movilidad A o B"
+  notes       String? // General notes for the workout day (e.g. "Entrada en calor: Movilidad A o B")
 
   trainerId String
   athleteId String
@@ -60,7 +67,8 @@ model WorkoutDay {
   trainer User @relation("TrainerWorkoutDays", fields: [trainerId], references: [id])
   athlete User @relation("AthleteWorkoutDays", fields: [athleteId], references: [id])
 
-  exercises WorkoutDayExercise[]
+  exercises     WorkoutDayExercise[]
+  blockComments WorkoutDayBlockComment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -68,15 +76,31 @@ model WorkoutDay {
   @@unique([athleteId, weekNumber, dayIndex])
 }
 
+// ---------- Block comments ----------
+
+model WorkoutDayBlockComment {
+  id           String @id @default(uuid())
+  workoutDayId String
+  block        Block // warmup / a / b / c / d
+  comment      String // markdown supported for links
+
+  workoutDay WorkoutDay @relation(fields: [workoutDayId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([workoutDayId, block])
+}
+
 // ---------- Exercise library ----------
 
 model Exercise {
-  id           String @id @default(uuid())
+  id           String  @id @default(uuid())
   name         String // e.g. "Sentadilla búlgara"
-  instructions String? // short notes for form cues
+  instructions String? // markdown supported - short notes for form cues, can include links
   videoUrl     String? // YouTube link
   hasWeight    Boolean @default(false)
-  variants     String?
+  tags         String[] @default([]) // e.g. ["fuerza", "pliometrico", "core"]
 
   workoutDayExercises WorkoutDayExercise[]
 
@@ -87,21 +111,17 @@ model Exercise {
 // ---------- Workout day exercises (with sets, feedback) ----------
 
 model WorkoutDayExercise {
-  id          String @id @default(uuid())
-  exerciseId  String
+  id           String @id @default(uuid())
+  exerciseId   String
   workoutDayId String
 
-  block String // warmup / a / b / c
-  order Int // order inside the block (A1=1, A2=2, B1=3, etc.)
-  comment String? // e.g. "Reps por lado y peso total", "El peso equivale por mancuerna"
-
-  // Feedback (per exercise, not per set)
-  sessionDate    DateTime @default(now())
-  rpe            Int? // 1–10
-  generalFeeling String? // free text
+  block    Block // warmup / a / b / c / d
+  order    Int // order inside the block (A1=1, A2=2, B1=3, etc.)
+  comment  String? // markdown - e.g. "Reps por lado y peso total", "El peso equivale por mancuerna"
+  variants String[] @default([]) // e.g. ["concentrica_explosiva", "core_activo"]
 
   exercise   Exercise   @relation(fields: [exerciseId], references: [id])
-  workoutDay WorkoutDay @relation(fields: [workoutDayId], references: [id])
+  workoutDay WorkoutDay @relation(fields: [workoutDayId], references: [id], onDelete: Cascade)
   sets       Set[]
 
   createdAt DateTime @default(now())
@@ -110,25 +130,45 @@ model WorkoutDayExercise {
   @@unique([workoutDayId, block, order])
 }
 
-// ---------- Sets (multiple sets per exercise) ----------
+// ---------- Sets (prescribed by trainer) ----------
 
 model Set {
-  id                  String @id @default(uuid())
+  id                   String @id @default(uuid())
   workoutDayExerciseId String
 
-  setIndex Int // 1, 2, 3, 4, 5 (for ordering sets)
-  reps     Int? // e.g. 8 (null if exercise doesn't use reps, like "x")
-  weightKg Float? // e.g. 60 (null if bodyweight or no weight)
-  repsPerSide Boolean @default(false) // true if "Reps por lado" (reps per side)
-
-  // Feedback (per set)
-  rpe            Int? // 1–10
-  notes          String? // free text feedback for this specific set
+  setIndex        Int // 1, 2, 3, 4, 5 (for ordering sets)
+  reps            Int? // e.g. 8 (null if timed exercise)
+  weightKg        Float? // e.g. 60 (null if bodyweight or no weight)
+  durationSeconds Int? // for timed exercises like "40 seg" or holds
+  repsPerSide     Boolean @default(false) // true if "Reps por lado" (reps per side)
 
   workoutDayExercise WorkoutDayExercise @relation(fields: [workoutDayExerciseId], references: [id], onDelete: Cascade)
+  log                SetLog? // actual execution data
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([workoutDayExerciseId, setIndex])
+}
+
+// ---------- Set logs (actual execution by athlete) ----------
+
+model SetLog {
+  id    String @id @default(uuid())
+  setId String @unique
+
+  actualReps            Int? // what you actually did
+  actualWeightKg        Float? // what you actually lifted
+  actualDurationSeconds Int? // how long you actually held
+  actualRpe             Int? // 1-10, how hard it felt
+  completed             Boolean  @default(false) // did you do it at all?
+  skipped               Boolean  @default(false) // explicitly skipped?
+  notes                 String? // "felt easy", "grip failed", "subbed with X"
+
+  completedAt DateTime @default(now())
+
+  set Set @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

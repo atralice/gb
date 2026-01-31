@@ -12,6 +12,7 @@ function buildAttributes(): WorkoutDayExercise {
     block: "a",
     order: 1,
     comment: null,
+    variants: [],
     sessionDate: new Date(),
     rpe: null,
     generalFeeling: null,
