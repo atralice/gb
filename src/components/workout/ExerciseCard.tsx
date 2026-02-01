@@ -1,30 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
+import { useDoubleTap } from "@/hooks/useDoubleTap";
 import SetPill from "./SetPill";
 import { calculateVolumes, getSetColorClasses } from "@/lib/workouts/setColors";
-import type { Set as PrismaSet } from "@prisma/client";
+import {
+  upsertSetLog,
+  upsertSetLogs,
+} from "@/lib/workouts/actions/upsertSetLog";
+import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
 
-type Exercise = {
-  id: string;
-  name: string;
-  instructions: string | null;
-  videoUrl: string | null;
-  tags: string[];
-};
-
-type SetForDisplay = Pick<
-  PrismaSet,
-  "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide" | "durationSeconds"
->;
+type Block = NonNullable<WorkoutDayWithBlocks>["blocks"][number];
+type Exercise = Block["exercises"][number]["exercise"];
+type SetWithLog = Block["exercises"][number]["sets"][number];
 
 type ExerciseCardProps = {
   exercise: Exercise;
   comment: string | null;
-  sets: SetForDisplay[];
+  sets: SetWithLog[];
   onExerciseTap: () => void;
-  onSetDoubleTap: (set: SetForDisplay, exerciseName: string) => void;
+  onSetDoubleTap: (
+    set: SetWithLog,
+    exerciseName: string,
+    allSets: SetWithLog[]
+  ) => void;
 };
 
 export default function ExerciseCard({
@@ -34,35 +34,87 @@ export default function ExerciseCard({
   onExerciseTap,
   onSetDoubleTap,
 }: ExerciseCardProps) {
-  const [completedSets, setCompletedSets] = useState<Set<string>>(new Set());
+  const [isPending, startTransition] = useTransition();
+
+  // Initialize from server state
+  const initialCompleted = new Set(
+    sets.filter((s) => s.log?.completed).map((s) => s.id)
+  );
+  const [completedSets, setCompletedSets] =
+    useState<Set<string>>(initialCompleted);
 
   const { volumes, minVolume, maxVolume } = calculateVolumes(sets);
   const allCompleted = completedSets.size === sets.length && sets.length > 0;
 
-  const toggleSet = (setId: string) => {
-    setCompletedSets((prev) => {
-      const next = new Set(prev);
-      if (next.has(setId)) {
-        next.delete(setId);
-      } else {
-        next.add(setId);
-      }
-      return next;
-    });
+  const handleSetTap = (tappedSet: SetWithLog, index: number) => {
+    const isCompleted = completedSets.has(tappedSet.id);
+
+    if (isCompleted) {
+      // Uncomplete this set only
+      setCompletedSets((prev) => {
+        const next = new Set(prev);
+        next.delete(tappedSet.id);
+        return next;
+      });
+      startTransition(() => {
+        void upsertSetLog({ setId: tappedSet.id, completed: false });
+      });
+    } else {
+      // Complete this set and all previous sets with default values
+      const setsToComplete = sets.slice(0, index + 1);
+      const setIdsToComplete = setsToComplete.map((s) => s.id);
+
+      setCompletedSets((prev) => {
+        const next = new Set(prev);
+        setIdsToComplete.forEach((id) => next.add(id));
+        return next;
+      });
+
+      startTransition(() => {
+        void upsertSetLogs({ setIds: setIdsToComplete, completed: true });
+      });
+    }
   };
+
+  const handleToggleAll = () => {
+    const allSetIds = sets.map((s) => s.id);
+
+    if (allCompleted) {
+      // Uncomplete all sets
+      setCompletedSets(new Set());
+      startTransition(() => {
+        void upsertSetLogs({ setIds: allSetIds, completed: false });
+      });
+    } else {
+      // Complete all sets
+      setCompletedSets(new Set(allSetIds));
+      startTransition(() => {
+        void upsertSetLogs({ setIds: allSetIds, completed: true });
+      });
+    }
+  };
+
+  const { handleTap: handleCardTap } = useDoubleTap({
+    onDoubleTap: handleToggleAll,
+  });
 
   return (
     <div
+      onClick={handleCardTap}
       className={cn(
-        "rounded-2xl border bg-white p-4 shadow-sm transition-all duration-300",
+        "cursor-pointer rounded-2xl border bg-white p-4 shadow-sm transition-all duration-300",
         allCompleted
           ? "border-emerald-300 bg-emerald-50/30"
-          : "border-slate-100"
+          : "border-slate-100",
+        isPending && "opacity-70"
       )}
     >
       <div className="mb-1 flex items-start justify-between gap-3">
         <button
-          onClick={onExerciseTap}
+          onClick={(e) => {
+            e.stopPropagation();
+            onExerciseTap();
+          }}
           className="group min-w-0 flex-1 text-left"
         >
           <h3
@@ -88,12 +140,16 @@ export default function ExerciseCard({
           </h3>
         </button>
 
-        <div
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleToggleAll();
+          }}
           className={cn(
-            "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all",
+            "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all",
             allCompleted
-              ? "border-emerald-500 bg-emerald-500"
-              : "border-slate-300"
+              ? "border-emerald-500 bg-emerald-500 hover:bg-emerald-600"
+              : "border-slate-300 hover:border-slate-400 hover:bg-slate-50"
           )}
         >
           {allCompleted && (
@@ -111,7 +167,7 @@ export default function ExerciseCard({
               />
             </svg>
           )}
-        </div>
+        </button>
       </div>
 
       {comment && (
@@ -121,9 +177,7 @@ export default function ExerciseCard({
       <div className="flex flex-wrap gap-2">
         {sets.map((set, index) => {
           const volume = volumes[index] ?? 0;
-          const colorClasses = completedSets.has(set.id)
-            ? undefined
-            : getSetColorClasses(volume, minVolume, maxVolume);
+          const colorClasses = getSetColorClasses(volume, minVolume, maxVolume);
 
           return (
             <SetPill
@@ -134,8 +188,8 @@ export default function ExerciseCard({
               repsPerSide={set.repsPerSide}
               completed={completedSets.has(set.id)}
               colorClasses={colorClasses}
-              onTap={() => toggleSet(set.id)}
-              onDoubleTap={() => onSetDoubleTap(set, exercise.name)}
+              onTap={() => handleSetTap(set, index)}
+              onDoubleTap={() => onSetDoubleTap(set, exercise.name, sets)}
             />
           );
         })}

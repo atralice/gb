@@ -1,20 +1,17 @@
-"use client";
-
 import ExerciseCard from "./ExerciseCard";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
-import type { Set as PrismaSet } from "@prisma/client";
 
 type Block = NonNullable<WorkoutDayWithBlocks>["blocks"][number];
-
-type SetForEdit = Pick<
-  PrismaSet,
-  "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide" | "durationSeconds"
->;
+type SetWithLog = Block["exercises"][number]["sets"][number];
 
 type BlockContentProps = {
   block: Block;
   onExerciseTap: (exercise: Block["exercises"][number]) => void;
-  onSetDoubleTap: (set: SetForEdit, exerciseName: string) => void;
+  onSetDoubleTap: (
+    set: SetWithLog,
+    exerciseName: string,
+    allSets: SetWithLog[]
+  ) => void;
 };
 
 export default function BlockContent({
@@ -46,16 +43,22 @@ export default function BlockContent({
 
       {/* Exercises */}
       <div className="space-y-3">
-        {block.exercises.map((exercise) => (
-          <ExerciseCard
-            key={exercise.id}
-            exercise={exercise.exercise}
-            comment={exercise.comment}
-            sets={exercise.sets}
-            onExerciseTap={() => onExerciseTap(exercise)}
-            onSetDoubleTap={onSetDoubleTap}
-          />
-        ))}
+        {block.exercises.map((exercise) => {
+          // Include completed count in key to force remount when server data changes
+          const completedCount = exercise.sets.filter(
+            (s) => s.log?.completed
+          ).length;
+          return (
+            <ExerciseCard
+              key={`${exercise.id}-${completedCount}`}
+              exercise={exercise.exercise}
+              comment={exercise.comment}
+              sets={exercise.sets}
+              onExerciseTap={() => onExerciseTap(exercise)}
+              onSetDoubleTap={onSetDoubleTap}
+            />
+          );
+        })}
       </div>
 
       {/* Interaction hint */}

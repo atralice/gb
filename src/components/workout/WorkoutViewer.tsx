@@ -7,15 +7,15 @@ import BlockContent from "./BlockContent";
 import DayPickerDrawer from "./DayPickerDrawer";
 import ExerciseDetailDrawer from "./ExerciseDetailDrawer";
 import SetEditDrawer from "./SetEditDrawer";
-import { updateSet } from "@/lib/workouts/actions/updateSet";
+import {
+  upsertSetLog,
+  upsertSetLogs,
+} from "@/lib/workouts/actions/upsertSetLog";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
 import type { AvailableWorkoutDay } from "@/lib/workouts/getAvailableWorkoutDays";
-import type { Set as PrismaSet } from "@prisma/client";
 
-type SetForEdit = Pick<
-  PrismaSet,
-  "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide" | "durationSeconds"
->;
+type SetForEdit =
+  NonNullable<WorkoutDayWithBlocks>["blocks"][number]["exercises"][number]["sets"][number];
 
 type WorkoutViewerProps = {
   workoutDay: NonNullable<WorkoutDayWithBlocks>;
@@ -42,10 +42,41 @@ export default function WorkoutViewer({
   const [selectedSet, setSelectedSet] = useState<{
     set: SetForEdit;
     exerciseName: string;
+    allSets: SetForEdit[];
   } | null>(null);
 
-  const blocks = workoutDay.blocks.filter((b) => b.exercises.length > 0);
+  const blocks = workoutDay.blocks
+    .filter((b) => b.exercises.length > 0)
+    .sort((a, b) => {
+      // Warm-up blocks come first
+      const aIsWarmup =
+        a.label?.toLowerCase().includes("warm") ||
+        a.label?.toLowerCase().includes("calentamiento");
+      const bIsWarmup =
+        b.label?.toLowerCase().includes("warm") ||
+        b.label?.toLowerCase().includes("calentamiento");
+      if (aIsWarmup && !bIsWarmup) return -1;
+      if (!aIsWarmup && bIsWarmup) return 1;
+      // Then sort by order
+      return a.order - b.order;
+    });
   const activeBlock = blocks[activeBlockIndex];
+
+  // Compute block completion status
+  const isBlockCompleted = (block: (typeof blocks)[number]) => {
+    const allSets = block.exercises.flatMap((e) => e.sets);
+    return allSets.length > 0 && allSets.every((s) => s.log?.completed);
+  };
+
+  const blocksWithCompletion = blocks.map((block) => ({
+    id: block.id,
+    label: block.label,
+    order: block.order,
+    isCompleted: isBlockCompleted(block),
+  }));
+
+  const isDayCompleted =
+    blocks.length > 0 && blocks.every((b) => isBlockCompleted(b));
 
   // Swipe handling
   const touchStartX = useRef<number | null>(null);
@@ -97,11 +128,12 @@ export default function WorkoutViewer({
         dayIndex={workoutDay.dayIndex}
         weekNumber={workoutDay.weekNumber}
         weekStartDate={workoutDay.weekStartDate}
-        blocks={blocks}
+        blocks={blocksWithCompletion}
         activeBlockIndex={activeBlockIndex}
         onBlockSelect={handleBlockSelect}
         onHeaderTap={() => setDayPickerOpen(true)}
         isSuggested={isSuggested}
+        isDayCompleted={isDayCompleted}
       />
 
       <div
@@ -113,8 +145,8 @@ export default function WorkoutViewer({
           <BlockContent
             block={activeBlock}
             onExerciseTap={setSelectedExercise}
-            onSetDoubleTap={(set, exerciseName) =>
-              setSelectedSet({ set, exerciseName })
+            onSetDoubleTap={(set, exerciseName, allSets) =>
+              setSelectedSet({ set, exerciseName, allSets })
             }
           />
         )}
@@ -142,13 +174,27 @@ export default function WorkoutViewer({
         onOpenChange={(open) => !open && setSelectedSet(null)}
         onSave={async (setId, values) => {
           if (!selectedSet) return;
-          await updateSet({
-            setId,
-            reps: values.reps ?? null,
-            weightKg: values.weightKg ?? null,
-            durationSeconds: values.durationSeconds ?? null,
-            repsPerSide: selectedSet.set.repsPerSide,
-          });
+
+          // Find the index of this set
+          const setIndex = selectedSet.allSets.findIndex((s) => s.id === setId);
+          const previousSetIds = selectedSet.allSets
+            .slice(0, setIndex)
+            .filter((s) => !s.log?.completed)
+            .map((s) => s.id);
+
+          // Complete this set with custom values, and previous sets with defaults
+          await Promise.all([
+            upsertSetLog({
+              setId,
+              completed: true,
+              actualReps: values.reps ?? null,
+              actualWeightKg: values.weightKg ?? null,
+              actualDurationSeconds: values.durationSeconds ?? null,
+            }),
+            previousSetIds.length > 0
+              ? upsertSetLogs({ setIds: previousSetIds, completed: true })
+              : Promise.resolve(),
+          ]);
           router.refresh();
         }}
       />

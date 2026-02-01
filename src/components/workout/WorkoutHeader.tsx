@@ -3,11 +3,13 @@
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/cn";
+import CheckmarkBadge from "@/components/ui/CheckmarkBadge";
 
 type Block = {
   id: string;
   label: string | null;
   order: number;
+  isCompleted: boolean;
 };
 
 type WorkoutHeaderProps = {
@@ -19,6 +21,7 @@ type WorkoutHeaderProps = {
   onBlockSelect: (index: number) => void;
   onHeaderTap: () => void;
   isSuggested?: boolean;
+  isDayCompleted?: boolean;
 };
 
 export default function WorkoutHeader({
@@ -30,6 +33,7 @@ export default function WorkoutHeader({
   onBlockSelect,
   onHeaderTap,
   isSuggested = false,
+  isDayCompleted = false,
 }: WorkoutHeaderProps) {
   const formattedDate = format(weekStartDate, "d MMM", { locale: es });
 
@@ -38,9 +42,17 @@ export default function WorkoutHeader({
       <div className="mb-4 flex items-center justify-between">
         <button onClick={onHeaderTap} className="group flex items-center gap-2">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              Día {dayIndex}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1
+                className={cn(
+                  "text-2xl font-bold",
+                  isDayCompleted ? "text-emerald-700" : "text-slate-900"
+                )}
+              >
+                Día {dayIndex}
+              </h1>
+              {isDayCompleted && <CheckmarkBadge size="md" />}
+            </div>
             <p className="text-sm text-slate-400">
               Semana {weekNumber} · {formattedDate}
             </p>
@@ -68,19 +80,27 @@ export default function WorkoutHeader({
       </div>
 
       {/* Block pills */}
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+      <div className="flex gap-3 pt-1">
         {blocks.map((block, index) => (
           <button
             key={block.id}
             onClick={() => onBlockSelect(index)}
             className={cn(
-              "shrink-0 rounded-full px-5 py-2 text-sm font-medium transition-all",
+              "relative flex-1 rounded-full py-1.5 text-sm font-medium transition-all",
               activeBlockIndex === index
                 ? "bg-slate-800 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                : block.isCompleted
+                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             )}
           >
             {block.label || `Bloque ${index + 1}`}
+            {block.isCompleted && (
+              <CheckmarkBadge
+                size="sm"
+                className="absolute -right-0.5 -top-0.5"
+              />
+            )}
           </button>
         ))}
       </div>

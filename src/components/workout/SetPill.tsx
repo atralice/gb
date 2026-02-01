@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef } from "react";
 import { cn } from "@/lib/cn";
+import { useDoubleTap } from "@/hooks/useDoubleTap";
+import CheckmarkBadge from "@/components/ui/CheckmarkBadge";
 
 type SetPillProps = {
   reps: number | null;
@@ -24,17 +25,10 @@ export default function SetPill({
   onDoubleTap,
   colorClasses,
 }: SetPillProps) {
-  const lastTapRef = useRef(0);
-
-  const handleTap = () => {
-    const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      onDoubleTap?.();
-    } else {
-      onTap?.();
-    }
-    lastTapRef.current = now;
-  };
+  const { handleTap } = useDoubleTap({
+    onSingleTap: onTap,
+    onDoubleTap,
+  });
 
   const isTimeBased = durationSeconds != null && durationSeconds > 0;
   const hasWeight = weightKg != null && weightKg > 0;
@@ -43,13 +37,14 @@ export default function SetPill({
     <button
       onClick={handleTap}
       className={cn(
-        "flex min-w-16 flex-col items-center justify-center rounded-xl px-4 py-3 transition-all duration-200",
-        completed
-          ? "bg-emerald-500 text-white shadow-md"
-          : colorClasses ||
-              "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+        "relative flex min-w-16 flex-col items-center justify-center rounded-xl px-4 py-3 transition-all duration-200",
+        completed ? "ring-2 ring-emerald-600 ring-offset-1 shadow-md" : "",
+        colorClasses || "bg-emerald-100 text-emerald-900 hover:bg-emerald-200"
       )}
     >
+      {completed && (
+        <CheckmarkBadge size="sm" className="absolute -right-0.5 -top-0.5" />
+      )}
       <span className="text-2xl font-bold leading-none">
         {isTimeBased ? durationSeconds : (reps ?? "x")}
       </span>

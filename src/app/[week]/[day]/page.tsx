@@ -14,8 +14,8 @@ export default async function WorkoutPage({
   params,
   searchParams,
 }: WorkoutPageProps) {
-  const { week, day } = await params;
-  const { block } = await searchParams;
+  // Parallel await for params and searchParams
+  const [{ week, day }, { block }] = await Promise.all([params, searchParams]);
 
   const weekNumber = parseInt(week, 10);
   const dayIndex = parseInt(day, 10);
@@ -26,17 +26,23 @@ export default async function WorkoutPage({
   }
 
   // TODO: Replace with actual auth
-  const athlete = await prisma.user.findFirst({
+  // Start athlete fetch early, await later
+  const athletePromise = prisma.user.findFirst({
     where: { role: "athlete" },
   });
 
+  // Start available days fetch in parallel (doesn't need athlete)
+  const availableDaysPromise = getAvailableWorkoutDays();
+
+  const athlete = await athletePromise;
   if (!athlete) {
     notFound();
   }
 
+  // Now fetch athlete-dependent data in parallel
   const [workoutDay, availableDays, suggested] = await Promise.all([
     getWorkoutDay(athlete.id, weekNumber, dayIndex),
-    getAvailableWorkoutDays(),
+    availableDaysPromise,
     getSuggestedWorkoutDay(athlete.id),
   ]);
 
