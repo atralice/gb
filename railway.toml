@@ -2,7 +2,7 @@
 builder = "nixpacks"
 installCommand = "bun install"
 buildCommand = "bunx prisma generate && bun run build"
-
+preDeployCommand="bunx prisma migrate deploy && bunx prisma generate"
 [deploy]
 startCommand = "bun run start"
 healthcheckPath = "/"
