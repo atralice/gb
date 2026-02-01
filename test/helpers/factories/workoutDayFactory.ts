@@ -8,6 +8,7 @@ function buildAttributes(): WorkoutDay {
   return {
     id: randomUUID(),
     weekNumber: 1,
+    weekStartDate: new Date("2025-01-19"),
     dayIndex: 1,
     label: "Día 1",
     datePlanned: null,
@@ -29,6 +30,7 @@ function createAttributes(
 ): Prisma.WorkoutDayCreateInput {
   return {
     weekNumber: 1,
+    weekStartDate: new Date("2025-01-19"),
     dayIndex: 1,
     label: "Día 1",
     ...attributes,

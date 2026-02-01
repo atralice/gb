@@ -62,12 +62,13 @@ model Exercise {
 // ---------- Workout structure ----------
 
 model WorkoutDay {
-  id          String    @id @default(uuid())
-  weekNumber  Int       @default(1) // e.g. 3, 4, 10
-  dayIndex    Int       // 1, 2, 3
-  label       String?   // "Día 1" (optional override)
-  datePlanned DateTime? // when scheduled
-  notes       String?   // markdown - e.g. "Entrada en calor: Movilidad A o B"
+  id            String   @id @default(uuid())
+  weekNumber    Int      @default(1)
+  weekStartDate DateTime
+  dayIndex      Int
+  label         String?
+  datePlanned   DateTime?
+  notes         String?
 
   trainerId String
   athleteId String
@@ -81,6 +82,7 @@ model WorkoutDay {
   updatedAt DateTime @updatedAt
 
   @@unique([athleteId, weekNumber, dayIndex])
+  @@unique([athleteId, weekStartDate, dayIndex])
 }
 
 model WorkoutBlock {
