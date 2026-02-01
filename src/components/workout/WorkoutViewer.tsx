@@ -37,7 +37,6 @@ export default function WorkoutViewer({
 
   const handleBlockSelect = (index: number) => {
     setActiveBlockIndex(index);
-    // Update URL without navigation
     const params = new URLSearchParams(searchParams.toString());
     params.set("block", index.toString());
     router.replace(`?${params.toString()}`, { scroll: false });
