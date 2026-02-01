@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { getWorkoutDay } from "@/lib/workouts/getWorkoutDay";
 import { getAvailableWorkoutDays } from "@/lib/workouts/getAvailableWorkoutDays";
+import { getSuggestedWorkoutDay } from "@/lib/workouts/getSuggestedWorkoutDay";
+import WorkoutViewer from "@/components/workout/WorkoutViewer";
 import prisma from "@/lib/prisma";
 
 type WorkoutPageProps = {
@@ -19,7 +21,6 @@ export default async function WorkoutPage({
   const dayIndex = parseInt(day, 10);
   const blockIndex = block ? parseInt(block, 10) : 0;
 
-  // Validate params
   if (isNaN(weekNumber) || isNaN(dayIndex)) {
     notFound();
   }
@@ -33,9 +34,10 @@ export default async function WorkoutPage({
     notFound();
   }
 
-  const [workoutDay, _availableDays] = await Promise.all([
+  const [workoutDay, availableDays, suggested] = await Promise.all([
     getWorkoutDay(athlete.id, weekNumber, dayIndex),
     getAvailableWorkoutDays(),
+    getSuggestedWorkoutDay(athlete.id),
   ]);
 
   if (!workoutDay) {
@@ -43,26 +45,11 @@ export default async function WorkoutPage({
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      {/* Header placeholder */}
-      <header className="sticky top-0 z-10 border-b border-slate-100 bg-white px-4 pb-4 pt-12">
-        <h1 className="text-2xl font-bold text-slate-900">
-          Día {workoutDay.dayIndex}
-        </h1>
-        <p className="text-sm text-slate-400">Semana {workoutDay.weekNumber}</p>
-      </header>
-
-      {/* Content placeholder */}
-      <div className="p-4">
-        <p className="text-slate-600">
-          Workout page for week {weekNumber}, day {dayIndex}, block {blockIndex}
-        </p>
-        <p className="mt-2 text-sm text-slate-500">
-          {workoutDay.blocks.length} blocks,{" "}
-          {workoutDay.blocks.reduce((acc, b) => acc + b.exercises.length, 0)}{" "}
-          exercises
-        </p>
-      </div>
-    </main>
+    <WorkoutViewer
+      workoutDay={workoutDay}
+      availableDays={availableDays}
+      initialBlockIndex={blockIndex}
+      suggestedDay={suggested?.dayIndex ?? 1}
+    />
   );
 }
