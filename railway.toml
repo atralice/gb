@@ -1,13 +1,13 @@
 [build]
 builder = "nixpacks"
-buildCommand = "yarn install && yarn prisma generate && yarn build"
+buildCommand = "bun install && bunx prisma generate && bun run build"
 
 [deploy]
-startCommand = "yarn start"
+startCommand = "bun run start"
 healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 
 [nixpacks]
-nixPkgs = ["nodejs_22"]
+nixPkgs = ["nodejs_22", "bun"]
