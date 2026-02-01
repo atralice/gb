@@ -143,8 +143,19 @@ const WorkoutCarousel = ({ workoutDay }: WorkoutCarouselProps) => {
                 tags={uniqueTags}
               />
               <div className="space-y-2">
-                {block.exercises.map((exercise) => (
-                  <ExerciseCard key={exercise.id} exercise={exercise} />
+                {block.exercises.map((blockExercise) => (
+                  <ExerciseCard
+                    key={blockExercise.id}
+                    exercise={blockExercise.exercise}
+                    comment={blockExercise.comment}
+                    sets={blockExercise.sets}
+                    onExerciseTap={() => {
+                      console.log(
+                        "Open exercise detail for",
+                        blockExercise.exercise.id
+                      );
+                    }}
+                  />
                 ))}
               </div>
             </article>
