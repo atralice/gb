@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getSuggestedWorkoutDay } from "@/lib/workouts/getSuggestedWorkoutDay";
 import prisma from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   // TODO: Replace with actual auth
   const athlete = await prisma.user.findFirst({
