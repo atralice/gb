@@ -79,7 +79,7 @@ describe("getWorkoutDay", () => {
       weightKg: null,
     });
 
-    const result = await getWorkoutDay(1, 10);
+    const result = await getWorkoutDay(athlete.id, 10, 1);
 
     expectDefinedNotNull(result);
     expect(result).toMatchObject({
@@ -114,27 +114,38 @@ describe("getWorkoutDay", () => {
   });
 
   test("returns null when workout day not found", async () => {
-    const result = await getWorkoutDay(999, 999);
+    const result = await getWorkoutDay("non-existent-id", 999, 999);
     expect(result).toBeNull();
   });
 
-  test("uses default parameters", async () => {
+  test("filters by athleteId", async () => {
     const trainer = await userFactory.create({ role: UserRole.trainer });
-    const athlete = await userFactory.create({ role: UserRole.athlete });
+    const athlete1 = await userFactory.create({ role: UserRole.athlete });
+    const athlete2 = await userFactory.create({ role: UserRole.athlete });
 
     await workoutDayFactory.create({
       trainer: { connect: { id: trainer.id } },
-      athlete: { connect: { id: athlete.id } },
+      athlete: { connect: { id: athlete1.id } },
       weekNumber: 10,
       dayIndex: 1,
+      label: "Athlete 1 Day",
     });
 
-    const result = await getWorkoutDay();
+    await workoutDayFactory.create({
+      trainer: { connect: { id: trainer.id } },
+      athlete: { connect: { id: athlete2.id } },
+      weekNumber: 10,
+      dayIndex: 1,
+      label: "Athlete 2 Day",
+    });
+
+    const result = await getWorkoutDay(athlete1.id, 10, 1);
 
     expectDefinedNotNull(result);
     expect(result).toMatchObject({
       weekNumber: 10,
       dayIndex: 1,
+      label: "Athlete 1 Day",
     });
   });
 
@@ -168,7 +179,7 @@ describe("getWorkoutDay", () => {
       label: "B",
     });
 
-    const result = await getWorkoutDay(1, 10);
+    const result = await getWorkoutDay(athlete.id, 10, 1);
 
     expectDefinedNotNull(result);
     expect(result.blocks).toHaveLength(3);
@@ -216,7 +227,7 @@ describe("getWorkoutDay", () => {
       order: 2,
     });
 
-    const result = await getWorkoutDay(1, 10);
+    const result = await getWorkoutDay(athlete.id, 10, 1);
 
     expectDefinedNotNull(result);
     const exercises = result.blocks[0]?.exercises;
@@ -273,7 +284,7 @@ describe("getWorkoutDay", () => {
       weightKg: 65,
     });
 
-    const result = await getWorkoutDay(1, 10);
+    const result = await getWorkoutDay(athlete.id, 10, 1);
 
     expectDefinedNotNull(result);
     const sets = result.blocks[0]?.exercises[0]?.sets;

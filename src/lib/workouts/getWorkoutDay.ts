@@ -2,13 +2,15 @@ import prisma from "../prisma";
 import type { Prisma } from "@prisma/client";
 
 export async function getWorkoutDay(
-  dayIndex: number = 1,
-  weekNumber: number = 10
+  athleteId: string,
+  weekNumber: number,
+  dayIndex: number
 ) {
   const workoutDay = await prisma.workoutDay.findFirst({
     where: {
-      dayIndex,
+      athleteId,
       weekNumber,
+      dayIndex,
     },
     include: {
       blocks: {
@@ -19,6 +21,7 @@ export async function getWorkoutDay(
                 select: {
                   id: true,
                   name: true,
+                  instructions: true,
                   videoUrl: true,
                   tags: true,
                 },
