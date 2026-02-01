@@ -1,24 +1,18 @@
 "use client";
 
-import { cn } from "@/lib/cn";
 import EditableExerciseSetPills from "./EditableExerciseSetPills";
 import EditableExerciseComment from "./EditableExerciseComment";
-import type { WorkoutDayExercise } from "@prisma/client";
+import type { WorkoutBlockExercise, Set } from "@prisma/client";
 
-type WorkoutDayExerciseWithRelations = WorkoutDayExercise & {
+type WorkoutBlockExerciseWithRelations = WorkoutBlockExercise & {
   exercise: { id: string; name: string; videoUrl: string | null };
-  sets: Array<{
-    id: string;
-    setIndex: number;
-    reps: number | null;
-    weightKg: number | null;
-    repsPerSide: boolean;
-  }>;
-  variants: string[];
+  sets: Array<
+    Pick<Set, "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide">
+  >;
 };
 
 type EditableExerciseCardProps = {
-  exercise: WorkoutDayExerciseWithRelations;
+  exercise: WorkoutBlockExerciseWithRelations;
 };
 
 const EditableExerciseCard = ({ exercise }: EditableExerciseCardProps) => {
@@ -30,7 +24,7 @@ const EditableExerciseCard = ({ exercise }: EditableExerciseCardProps) => {
             {exercise.exercise.name}
           </p>
           <EditableExerciseComment
-            exerciseId={exercise.id}
+            workoutBlockExerciseId={exercise.id}
             initialComment={exercise.comment}
           />
         </div>

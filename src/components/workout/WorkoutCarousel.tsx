@@ -1,62 +1,64 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
-import { BlockType, blockLabels } from "@/types/workout";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { cn } from "@/lib/cn";
 import ExerciseCard from "./ExerciseCard";
 import BlockHeader from "./BlockHeader";
-import {
-  partitionExercises,
-  partitionBlockComments,
-} from "@/lib/workouts/partition";
-import type { WorkoutDayWithExercises } from "@/lib/workouts/getWorkoutDay";
+import { getBlockLabel } from "@/lib/workouts/partition";
+import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
 
 type WorkoutCarouselProps = {
-  workoutDay: NonNullable<WorkoutDayWithExercises>;
+  workoutDay: NonNullable<WorkoutDayWithBlocks>;
 };
 
 const WorkoutCarousel = ({ workoutDay }: WorkoutCarouselProps) => {
   const carouselRef = useRef<HTMLDivElement>(null);
-  const [activeBlock, setActiveBlock] = useState<BlockType>(BlockType.a);
+  const hasInitialized = useRef(false);
 
-  const exercises = partitionExercises(workoutDay.exercises);
-  const blockComments = partitionBlockComments(workoutDay.blockComments || []);
+  const blocks = workoutDay.blocks;
 
-  // Build list of available blocks (only those with exercises)
-  const availableBlocks = Object.values(BlockType).filter(
-    (blockType) => exercises[blockType].length > 0
+  // Filter to only blocks that have exercises
+  const blocksWithExercises = useMemo(
+    () => blocks.filter((block) => block.exercises.length > 0),
+    [blocks]
   );
 
-  // Memoize exercises to avoid recreating on every render
-  const exercisesMemo = useMemo(() => exercises, [workoutDay.exercises]);
+  // Calculate initial block index (first non-warmup block)
+  const initialBlockIndex = useMemo(() => {
+    const firstMainBlockIndex = blocksWithExercises.findIndex(
+      (block) => block.order > 0
+    );
+    return firstMainBlockIndex > 0 ? firstMainBlockIndex : 0;
+  }, [blocksWithExercises]);
 
-  const selectBlock = (blockType: BlockType) => {
-    setActiveBlock(blockType);
+  const [activeBlockIndex, setActiveBlockIndex] = useState(initialBlockIndex);
 
-    if (!carouselRef.current) return;
+  const scrollToSlide = useCallback(
+    (index: number, behavior: ScrollBehavior = "smooth") => {
+      if (!carouselRef.current) return;
 
-    const slides = carouselRef.current.children;
-    // Find the slide index for the block by counting blocks with exercises before it
-    let slideIndex = 0;
-    for (const bt of Object.values(BlockType)) {
-      if (bt === blockType) break;
-      if (exercises[bt].length > 0) slideIndex++;
-    }
+      const slides = carouselRef.current.children;
+      const targetSlide = slides[index];
 
-    const targetSlide = slides[slideIndex] as HTMLElement;
-    if (targetSlide && carouselRef.current) {
-      // Scroll the carousel container directly to the target slide position
-      const carousel = carouselRef.current;
-      const slideLeft = targetSlide.offsetLeft;
-      const slideWidth = targetSlide.offsetWidth;
-      const carouselWidth = carousel.offsetWidth;
-      const scrollPosition = slideLeft - (carouselWidth - slideWidth) / 2;
+      if (targetSlide instanceof HTMLElement) {
+        const carousel = carouselRef.current;
+        const slideLeft = targetSlide.offsetLeft;
+        const slideWidth = targetSlide.offsetWidth;
+        const carouselWidth = carousel.offsetWidth;
+        const scrollPosition = slideLeft - (carouselWidth - slideWidth) / 2;
 
-      carousel.scrollTo({
-        left: scrollPosition,
-        behavior: "smooth",
-      });
-    }
+        carousel.scrollTo({
+          left: scrollPosition,
+          behavior,
+        });
+      }
+    },
+    []
+  );
+
+  const selectBlock = (index: number) => {
+    setActiveBlockIndex(index);
+    scrollToSlide(index);
   };
 
   // Track scroll position to update active block button
@@ -69,78 +71,53 @@ const WorkoutCarousel = ({ workoutDay }: WorkoutCarouselProps) => {
       const carouselRect = carousel.getBoundingClientRect();
 
       for (let i = 0; i < slides.length; i++) {
-        const slide = slides[i] as HTMLElement;
+        const slide = slides[i];
+        if (!(slide instanceof HTMLElement)) continue;
+
         const slideRect = slide.getBoundingClientRect();
         const slideCenter = slideRect.left + slideRect.width / 2;
         const carouselCenter = carouselRect.left + carouselRect.width / 2;
 
-        // Check if slide is in the center of viewport
         if (Math.abs(slideCenter - carouselCenter) < slideRect.width / 2) {
-          // Determine which block this slide represents
-          let slideCount = 0;
-          let blockType = BlockType.warmup;
-          for (const bt of Object.values(BlockType)) {
-            if (exercises[bt].length > 0) {
-              if (slideCount === i) {
-                blockType = bt;
-                break;
-              }
-              slideCount++;
-            }
-          }
-          setActiveBlock(blockType);
+          setActiveBlockIndex(i);
           break;
         }
       }
     };
 
     carousel.addEventListener("scroll", handleScroll);
-    // Initial check
     handleScroll();
 
     return () => {
       carousel.removeEventListener("scroll", handleScroll);
     };
-  }, [exercisesMemo]);
+  }, [blocksWithExercises]);
 
-  // Scroll to Block A on mount - skip warmup if present
+  // Scroll to initial block on mount
   useEffect(() => {
-    if (carouselRef.current) {
-      const slides = carouselRef.current.children;
-      // Find Block A slide index
-      let blockASlideIndex = 0;
-      for (const bt of Object.values(BlockType)) {
-        if (bt === BlockType.a) break;
-        if (exercises[bt].length > 0) blockASlideIndex++;
-      }
-
-      const blockASlide = slides[blockASlideIndex];
-      if (blockASlide) {
-        blockASlide.scrollIntoView({
-          behavior: "instant",
-          block: "nearest",
-        });
-      }
+    if (!hasInitialized.current && initialBlockIndex > 0) {
+      hasInitialized.current = true;
+      scrollToSlide(initialBlockIndex, "instant");
     }
-  }, [exercisesMemo]);
+  }, [initialBlockIndex, scrollToSlide]);
 
   return (
     <div>
       {/* Block Navigation Buttons */}
-      {availableBlocks.length > 1 && (
+      {blocksWithExercises.length > 1 && (
         <div className="mb-2 flex flex-wrap gap-1.5">
-          {availableBlocks.map((blockType) => (
+          {blocksWithExercises.map((block, index) => (
             <button
-              key={blockType}
-              onClick={() => selectBlock(blockType)}
+              key={block.id}
+              onClick={() => selectBlock(index)}
               className={cn(
                 "rounded px-2 py-1 text-xs font-medium transition-colors",
-                activeBlock === blockType
+                activeBlockIndex === index
                   ? "bg-slate-900 text-white"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               )}
             >
-              {blockLabels[blockType]}
+              {getBlockLabel(block)}
             </button>
           ))}
         </div>
@@ -151,34 +128,27 @@ const WorkoutCarousel = ({ workoutDay }: WorkoutCarouselProps) => {
         ref={carouselRef}
         style={{ scrollbarWidth: "thin" }}
       >
-        {/* Render slides for each block type that has exercises */}
-        {Object.values(BlockType).map((blockType) => {
-          const blockExercises = exercises[blockType];
-          if (blockExercises.length === 0) return null;
-
+        {blocksWithExercises.map((block) => {
           // Collect unique tags from exercises in this block
           const allTags = new Set<string>();
-          blockExercises.forEach((ex) => {
+          block.exercises.forEach((ex) => {
             const exerciseTags = ex.exercise.tags || [];
             exerciseTags.forEach((tag: string) => allTags.add(tag));
           });
           const uniqueTags = Array.from(allTags);
 
-          const blockComment = blockComments[blockType];
-
           return (
             <article
-              key={blockType}
+              key={block.id}
               className="carousel-slide w-[calc(100vw-2rem)] max-w-md shrink-0 p-2 sm:w-96"
             >
               <BlockHeader
-                block={blockType}
-                title={blockLabels[blockType]}
-                comment={blockComment}
+                title={getBlockLabel(block)}
+                comment={block.comment}
                 tags={uniqueTags}
               />
               <div className="space-y-2">
-                {blockExercises.map((exercise) => (
+                {block.exercises.map((exercise) => (
                   <ExerciseCard key={exercise.id} exercise={exercise} />
                 ))}
               </div>

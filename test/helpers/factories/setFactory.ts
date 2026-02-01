@@ -1,19 +1,18 @@
 import { randomUUID } from "crypto";
 
-import { Set, Prisma } from "@prisma/client";
+import type { Set, Prisma } from "@prisma/client";
 import createFactory from "./createFactory";
 import type { PartialWithRequired } from "./PartialWithRequired";
 
 function buildAttributes(): Set {
   return {
     id: randomUUID(),
-    workoutDayExerciseId: randomUUID(),
+    workoutBlockExerciseId: randomUUID(),
     setIndex: 1,
     reps: 8,
     weightKg: 60,
+    durationSeconds: null,
     repsPerSide: false,
-    rpe: null,
-    notes: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -21,7 +20,7 @@ function buildAttributes(): Set {
 
 type CreateAttributes = PartialWithRequired<
   Prisma.SetCreateInput,
-  "workoutDayExercise"
+  "workoutBlockExercise"
 >;
 
 function createAttributes(attributes: CreateAttributes): Prisma.SetCreateInput {

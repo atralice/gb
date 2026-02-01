@@ -1,16 +1,14 @@
 import { cn } from "@/lib/cn";
 import { useMemo } from "react";
+import type { Set } from "@prisma/client";
 
-type Set = {
-  id: string;
-  setIndex: number;
-  reps: number | null;
-  weightKg: number | null;
-  repsPerSide: boolean;
-};
+type SetForDisplay = Pick<
+  Set,
+  "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide"
+>;
 
 type ExerciseSetPillsProps = {
-  sets: Set[];
+  sets: SetForDisplay[];
 };
 
 // Epley formula to estimate 1RM: 1RM = Weight × (1 + Reps/30)

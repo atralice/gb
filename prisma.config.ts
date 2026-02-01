@@ -4,6 +4,7 @@ import { env } from "./env.config";
 export default defineConfig({
   schema: "schema.prisma",
   migrations: {
+    seed: "bun prisma/seed.ts",
     path: "migrations",
   },
   datasource: {

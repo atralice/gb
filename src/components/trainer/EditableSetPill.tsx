@@ -5,17 +5,17 @@ import { cn } from "@/lib/cn";
 import { updateSet } from "@/lib/workouts/actions/updateSet";
 import type { Set } from "@prisma/client";
 
+type SetForDisplay = Pick<
+  Set,
+  "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide"
+>;
+
 type EditableSetPillProps = {
-  set: Set;
-  volume: number;
+  set: SetForDisplay;
   colorClasses: string;
 };
 
-const EditableSetPill = ({
-  set,
-  volume,
-  colorClasses,
-}: EditableSetPillProps) => {
+const EditableSetPill = ({ set, colorClasses }: EditableSetPillProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [reps, setReps] = useState<string>(set.reps?.toString() ?? "");
   const [weightKg, setWeightKg] = useState<string>(

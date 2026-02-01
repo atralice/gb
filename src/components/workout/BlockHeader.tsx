@@ -1,10 +1,8 @@
 import { cn } from "@/lib/cn";
-import { BlockType } from "@/types/workout";
 
 type BlockHeaderProps = {
-  block: BlockType;
   title: string;
-  comment?: string;
+  comment?: string | null;
   tags?: string[];
 };
 

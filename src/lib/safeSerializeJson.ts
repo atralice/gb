@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/consistent-type-assertions, no-control-regex */
+/* eslint-disable @typescript-eslint/consistent-type-assertions */
 import { logError } from "@/lib/logger";
 import { Prisma } from "@prisma/client";
 

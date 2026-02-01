@@ -4,7 +4,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 
 const UpdateExerciseCommentSchema = z.object({
-  exerciseId: z.string().uuid(),
+  workoutBlockExerciseId: z.string().uuid(),
   comment: z.string().nullable(),
 });
 
@@ -13,8 +13,8 @@ export async function updateExerciseComment(
 ) {
   const validated = UpdateExerciseCommentSchema.parse(input);
 
-  const exercise = await prisma.workoutDayExercise.update({
-    where: { id: validated.exerciseId },
+  const exercise = await prisma.workoutBlockExercise.update({
+    where: { id: validated.workoutBlockExerciseId },
     data: { comment: validated.comment },
   });
 

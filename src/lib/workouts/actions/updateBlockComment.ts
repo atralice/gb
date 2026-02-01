@@ -4,9 +4,8 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 
 const UpdateBlockCommentSchema = z.object({
-  workoutDayId: z.string().uuid(),
-  block: z.string(),
-  comment: z.string(),
+  blockId: z.string().uuid(),
+  comment: z.string().nullable(),
 });
 
 export async function updateBlockComment(
@@ -14,21 +13,10 @@ export async function updateBlockComment(
 ) {
   const validated = UpdateBlockCommentSchema.parse(input);
 
-  // Upsert block comment
-  const blockComment = await prisma.workoutDayBlockComment.upsert({
-    where: {
-      workoutDayId_block: {
-        workoutDayId: validated.workoutDayId,
-        block: validated.block,
-      },
-    },
-    update: { comment: validated.comment },
-    create: {
-      workoutDayId: validated.workoutDayId,
-      block: validated.block,
-      comment: validated.comment,
-    },
+  const block = await prisma.workoutBlock.update({
+    where: { id: validated.blockId },
+    data: { comment: validated.comment },
   });
 
-  return blockComment;
+  return block;
 }

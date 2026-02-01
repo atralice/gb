@@ -1,38 +1,25 @@
-import { BlockType } from "@/types/workout";
-import type { WorkoutDayWithExercises } from "./getWorkoutDay";
+import type { WorkoutDayWithBlocks } from "./getWorkoutDay";
 
-type WorkoutDayExercise =
-  NonNullable<WorkoutDayWithExercises>["exercises"][number];
+type WorkoutBlock = NonNullable<WorkoutDayWithBlocks>["blocks"][number];
 
-type WorkoutDayBlockComment =
-  NonNullable<WorkoutDayWithExercises>["blockComments"][number];
-
-export function partitionExercises(
-  exercises: WorkoutDayExercise[]
-): Record<BlockType, WorkoutDayExercise[]> {
-  return {
-    [BlockType.warmup]: exercises.filter((ex) => ex.block === BlockType.warmup),
-    [BlockType.a]: exercises.filter((ex) => ex.block === BlockType.a),
-    [BlockType.b]: exercises.filter((ex) => ex.block === BlockType.b),
-    [BlockType.c]: exercises.filter((ex) => ex.block === BlockType.c),
-  };
+export function getBlocksByOrder(
+  blocks: WorkoutBlock[]
+): Map<number, WorkoutBlock> {
+  return new Map(blocks.map((block) => [block.order, block]));
 }
 
-export function partitionBlockComments(
-  blockComments: WorkoutDayBlockComment[]
-): Record<BlockType, string | undefined> {
-  const result: Record<BlockType, string | undefined> = {
-    [BlockType.warmup]: undefined,
-    [BlockType.a]: undefined,
-    [BlockType.b]: undefined,
-    [BlockType.c]: undefined,
+export function getBlockLabel(block: WorkoutBlock): string {
+  if (block.label) {
+    return block.label;
+  }
+
+  // Default labels based on order
+  const defaultLabels: Record<number, string> = {
+    0: "Calentamiento",
+    1: "Bloque A",
+    2: "Bloque B",
+    3: "Bloque C",
   };
 
-  blockComments.forEach((bc) => {
-    if (bc.block in result) {
-      result[bc.block as BlockType] = bc.comment;
-    }
-  });
-
-  return result;
+  return defaultLabels[block.order] ?? `Bloque ${block.order}`;
 }

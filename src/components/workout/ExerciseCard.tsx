@@ -1,21 +1,15 @@
-import { cn } from "@/lib/cn";
-import type { WorkoutDayExercise } from "@prisma/client";
+import type { WorkoutBlockExercise, Set } from "@prisma/client";
 import ExerciseSetPills from "./ExerciseSetPills";
 
-type WorkoutDayExerciseWithRelations = WorkoutDayExercise & {
+type WorkoutBlockExerciseWithRelations = WorkoutBlockExercise & {
   exercise: { id: string; name: string; videoUrl: string | null };
-  sets: Array<{
-    id: string;
-    setIndex: number;
-    reps: number | null;
-    weightKg: number | null;
-    repsPerSide: boolean;
-  }>;
-  variants: string[];
+  sets: Array<
+    Pick<Set, "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide">
+  >;
 };
 
 type ExerciseCardProps = {
-  exercise: WorkoutDayExerciseWithRelations;
+  exercise: WorkoutBlockExerciseWithRelations;
 };
 
 const ExerciseCard = ({ exercise }: ExerciseCardProps) => {

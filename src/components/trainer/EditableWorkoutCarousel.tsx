@@ -1,47 +1,43 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
-import { BlockType, blockLabels } from "@/types/workout";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { cn } from "@/lib/cn";
 import EditableExerciseCard from "./EditableExerciseCard";
 import EditableBlockHeader from "./EditableBlockHeader";
-import {
-  partitionExercises,
-  partitionBlockComments,
-} from "@/lib/workouts/partition";
-import type { WorkoutDayWithExercises } from "@/lib/workouts/getWorkoutDay";
+import { getBlockLabel } from "@/lib/workouts/partition";
+import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
 
 type EditableWorkoutCarouselProps = {
-  workoutDay: NonNullable<WorkoutDayWithExercises>;
+  workoutDay: NonNullable<WorkoutDayWithBlocks>;
 };
 
 const EditableWorkoutCarousel = ({
   workoutDay,
 }: EditableWorkoutCarouselProps) => {
   const carouselRef = useRef<HTMLDivElement>(null);
-  const [activeBlock, setActiveBlock] = useState<BlockType>(BlockType.a);
+  const [rawActiveBlockIndex, setActiveBlockIndex] = useState(0);
 
-  const exercises = partitionExercises(workoutDay.exercises);
-  const blockComments = partitionBlockComments(workoutDay.blockComments || []);
+  const blocks = workoutDay.blocks;
 
-  const availableBlocks = Object.values(BlockType).filter(
-    (blockType) => exercises[blockType].length > 0
+  // Filter to only blocks that have exercises
+  const blocksWithExercises = useMemo(
+    () => blocks.filter((block) => block.exercises.length > 0),
+    [blocks]
   );
 
-  const selectBlock = (blockType: BlockType) => {
-    setActiveBlock(blockType);
+  // Clamp active index to valid range
+  const activeBlockIndex =
+    blocksWithExercises.length > 0
+      ? Math.min(rawActiveBlockIndex, blocksWithExercises.length - 1)
+      : 0;
 
+  const scrollToSlide = useCallback((index: number) => {
     if (!carouselRef.current) return;
 
     const slides = carouselRef.current.children;
-    let slideIndex = 0;
-    for (const bt of Object.values(BlockType)) {
-      if (bt === blockType) break;
-      if (exercises[bt].length > 0) slideIndex++;
-    }
+    const targetSlide = slides[index];
 
-    const targetSlide = slides[slideIndex] as HTMLElement;
-    if (targetSlide && carouselRef.current) {
+    if (targetSlide instanceof HTMLElement) {
       const carousel = carouselRef.current;
       const slideLeft = targetSlide.offsetLeft;
       const slideWidth = targetSlide.offsetWidth;
@@ -53,20 +49,26 @@ const EditableWorkoutCarousel = ({
         behavior: "smooth",
       });
     }
+  }, []);
+
+  const selectBlock = (index: number) => {
+    setActiveBlockIndex(index);
+    scrollToSlide(index);
   };
 
   useEffect(() => {
-    if (!carouselRef.current || availableBlocks.length === 0) return;
+    if (!carouselRef.current || blocksWithExercises.length === 0) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            const blockType = entry.target.getAttribute(
-              "data-block"
-            ) as BlockType;
-            if (blockType) {
-              setActiveBlock(blockType);
+            const blockId = entry.target.getAttribute("data-block-id");
+            const index = blocksWithExercises.findIndex(
+              (b) => b.id === blockId
+            );
+            if (index >= 0) {
+              setActiveBlockIndex(index);
             }
           }
         });
@@ -78,30 +80,24 @@ const EditableWorkoutCarousel = ({
     Array.from(slides).forEach((slide) => observer.observe(slide));
 
     return () => observer.disconnect();
-  }, [availableBlocks.length]);
-
-  useEffect(() => {
-    if (availableBlocks.length > 0 && !activeBlock) {
-      setActiveBlock(availableBlocks[0]);
-    }
-  }, [availableBlocks, activeBlock]);
+  }, [blocksWithExercises]);
 
   return (
     <div>
-      {availableBlocks.length > 1 && (
+      {blocksWithExercises.length > 1 && (
         <div className="mb-1.5 flex flex-wrap gap-1.5">
-          {availableBlocks.map((blockType) => (
+          {blocksWithExercises.map((block, index) => (
             <button
-              key={blockType}
-              onClick={() => selectBlock(blockType)}
+              key={block.id}
+              onClick={() => selectBlock(index)}
               className={cn(
                 "rounded px-2 py-1 text-[10px] font-medium transition-colors",
-                activeBlock === blockType
+                activeBlockIndex === index
                   ? "bg-slate-900 text-white"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               )}
             >
-              {blockLabels[blockType]}
+              {getBlockLabel(block)}
             </button>
           ))}
         </div>
@@ -112,34 +108,28 @@ const EditableWorkoutCarousel = ({
         ref={carouselRef}
         style={{ scrollbarWidth: "thin" }}
       >
-        {Object.values(BlockType).map((blockType) => {
-          const blockExercises = exercises[blockType];
-          if (blockExercises.length === 0) return null;
-
+        {blocksWithExercises.map((block) => {
           const allTags = new Set<string>();
-          blockExercises.forEach((ex) => {
+          block.exercises.forEach((ex) => {
             const exerciseTags = ex.exercise.tags || [];
             exerciseTags.forEach((tag: string) => allTags.add(tag));
           });
           const uniqueTags = Array.from(allTags);
 
-          const comment = blockComments[blockType];
-
           return (
             <article
-              key={blockType}
-              data-block={blockType}
+              key={block.id}
+              data-block-id={block.id}
               className="carousel-slide w-[calc(100vw-2rem)] max-w-md shrink-0 p-2 sm:w-96"
             >
               <EditableBlockHeader
-                block={blockType}
-                title={blockLabels[blockType]}
+                blockId={block.id}
+                title={getBlockLabel(block)}
                 tags={uniqueTags}
-                comment={comment}
-                workoutDayId={workoutDay.id}
+                comment={block.comment}
               />
               <div className="space-y-2">
-                {blockExercises.map((exercise) => (
+                {block.exercises.map((exercise) => (
                   <EditableExerciseCard key={exercise.id} exercise={exercise} />
                 ))}
               </div>

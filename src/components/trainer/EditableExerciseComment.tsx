@@ -4,12 +4,12 @@ import { useState, useTransition } from "react";
 import { updateExerciseComment } from "@/lib/workouts/actions/updateExerciseComment";
 
 type EditableExerciseCommentProps = {
-  exerciseId: string;
+  workoutBlockExerciseId: string;
   initialComment: string | null;
 };
 
 const EditableExerciseComment = ({
-  exerciseId,
+  workoutBlockExerciseId,
   initialComment,
 }: EditableExerciseCommentProps) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -19,7 +19,7 @@ const EditableExerciseComment = ({
   const handleSave = () => {
     startTransition(async () => {
       await updateExerciseComment({
-        exerciseId,
+        workoutBlockExerciseId,
         comment: comment.trim() || null,
       });
       setIsEditing(false);

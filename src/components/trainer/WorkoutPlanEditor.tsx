@@ -1,22 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import type { WorkoutDayWithExercises } from "@/lib/workouts/getWorkoutDay";
+import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
 import EditableWorkoutCarousel from "./EditableWorkoutCarousel";
 
 type WorkoutPlanEditorProps = {
   athleteId: string;
-  workoutDays: NonNullable<WorkoutDayWithExercises>[];
+  workoutDays: NonNullable<WorkoutDayWithBlocks>[];
 };
 
 const WorkoutPlanEditor = ({
-  athleteId,
+  athleteId: _athleteId,
   workoutDays,
 }: WorkoutPlanEditorProps) => {
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
 
   // Group workout days by week
+  type WorkoutsByWeek = Record<number, NonNullable<WorkoutDayWithBlocks>[]>;
+  const initialAcc: WorkoutsByWeek = {};
   const workoutsByWeek = workoutDays.reduce((acc, day) => {
     const week = day.weekNumber;
     if (!acc[week]) {
@@ -24,7 +26,7 @@ const WorkoutPlanEditor = ({
     }
     acc[week].push(day);
     return acc;
-  }, {} as Record<number, NonNullable<WorkoutDayWithExercises>[]>);
+  }, initialAcc);
 
   const weeks = Object.keys(workoutsByWeek)
     .map(Number)

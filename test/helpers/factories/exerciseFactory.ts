@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 
 import createFactory from "./createFactory";
 import type { PartialWithRequired } from "./PartialWithRequired";
-import { Exercise, Prisma } from "@prisma/client";
+import type { Exercise, Prisma } from "@prisma/client";
 
 function buildAttributes(): Exercise {
   return {
@@ -10,7 +10,7 @@ function buildAttributes(): Exercise {
     name: "Sentadilla búlgara",
     instructions: null,
     videoUrl: null,
-    hasWeight: false,
+    tags: [],
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -23,7 +23,6 @@ function createAttributes(
 ): Prisma.ExerciseCreateInput {
   return {
     name: "Test Exercise",
-    hasWeight: false,
     ...attributes,
   };
 }

@@ -2,15 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
-import { BlockType } from "@/types/workout";
 import { updateBlockComment } from "@/lib/workouts/actions/updateBlockComment";
 
 type EditableBlockHeaderProps = {
-  block: BlockType;
+  blockId: string;
   title: string;
-  comment?: string;
+  comment?: string | null;
   tags?: string[];
-  workoutDayId: string;
 };
 
 const tagColorClasses = [
@@ -25,8 +23,7 @@ const EditableBlockHeader = ({
   title,
   comment,
   tags = [],
-  workoutDayId,
-  block,
+  blockId,
 }: EditableBlockHeaderProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedComment, setEditedComment] = useState(comment ?? "");
@@ -35,9 +32,8 @@ const EditableBlockHeader = ({
   const handleSave = () => {
     startTransition(async () => {
       await updateBlockComment({
-        workoutDayId,
-        block,
-        comment: editedComment.trim(),
+        blockId,
+        comment: editedComment.trim() || null,
       });
       setIsEditing(false);
     });

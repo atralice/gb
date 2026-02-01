@@ -31,25 +31,29 @@ export default async function TrainerPlanPage({ params }: PageProps) {
       athleteId,
     },
     include: {
-      exercises: {
+      blocks: {
         include: {
-          exercise: {
-            select: {
-              id: true,
-              name: true,
-              videoUrl: true,
-              tags: true,
+          exercises: {
+            include: {
+              exercise: {
+                select: {
+                  id: true,
+                  name: true,
+                  videoUrl: true,
+                  tags: true,
+                },
+              },
+              sets: {
+                orderBy: {
+                  setIndex: "asc",
+                },
+              },
             },
-          },
-          sets: {
-            orderBy: {
-              setIndex: "asc",
-            },
+            orderBy: { order: "asc" },
           },
         },
-        orderBy: [{ block: "asc" }, { order: "asc" }],
+        orderBy: { order: "asc" },
       },
-      blockComments: true,
     },
     orderBy: [{ weekNumber: "desc" }, { dayIndex: "asc" }],
   });

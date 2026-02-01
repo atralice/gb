@@ -1,6 +1,6 @@
 import { env as envConfig } from "@/env.config";
 
-const ENVIRONMENTS = ["development", "staging", "production"] as const;
+export const ENVIRONMENTS = ["development", "staging", "production"] as const;
 
 export type Environment = (typeof ENVIRONMENTS)[number];
 

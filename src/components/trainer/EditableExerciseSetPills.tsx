@@ -2,17 +2,15 @@
 
 import { useMemo } from "react";
 import EditableSetPill from "./EditableSetPill";
+import type { Set } from "@prisma/client";
 
-type Set = {
-  id: string;
-  setIndex: number;
-  reps: number | null;
-  weightKg: number | null;
-  repsPerSide: boolean;
-};
+type SetForDisplay = Pick<
+  Set,
+  "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide"
+>;
 
 type EditableExerciseSetPillsProps = {
-  sets: Set[];
+  sets: SetForDisplay[];
 };
 
 // Epley formula to estimate 1RM: 1RM = Weight × (1 + Reps/30)
@@ -41,9 +39,9 @@ const getSetColorClasses = (
     "bg-yellow-100 text-yellow-900",
     "bg-orange-100 text-orange-900",
     "bg-rose-100 text-rose-900",
-  ];
+  ] as const;
 
-  return colorMap[colorIndex];
+  return colorMap[colorIndex] ?? colorMap[0];
 };
 
 const EditableExerciseSetPills = ({ sets }: EditableExerciseSetPillsProps) => {
@@ -78,12 +76,7 @@ const EditableExerciseSetPills = ({ sets }: EditableExerciseSetPillsProps) => {
         const colorClasses = getSetColorClasses(volume, minVolume, maxVolume);
 
         return (
-          <EditableSetPill
-            key={set.id}
-            set={set}
-            volume={volume}
-            colorClasses={colorClasses}
-          />
+          <EditableSetPill key={set.id} set={set} colorClasses={colorClasses} />
         );
       })}
     </div>

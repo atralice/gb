@@ -7,6 +7,7 @@ generator client {
 }
 
 // ---------- Core users ----------
+
 enum UserRole {
   athlete
   trainer
@@ -43,23 +44,30 @@ model TrainerAthlete {
   @@id([trainerId, athleteId])
 }
 
-// ---------- Programming structure ----------
+// ---------- Exercise library ----------
 
-enum Block {
-  warmup
-  a
-  b
-  c
-  d // in case routines expand
+model Exercise {
+  id           String   @id @default(uuid())
+  name         String   @unique // e.g. "Sentadilla búlgara"
+  instructions String?  // markdown - form cues, can include links
+  videoUrl     String?  // YouTube/video link
+  tags         String[] @default([]) // e.g. ["fuerza", "piernas", "unilateral"]
+
+  workoutBlockExercises WorkoutBlockExercise[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
+
+// ---------- Workout structure ----------
 
 model WorkoutDay {
   id          String    @id @default(uuid())
-  weekNumber  Int       @default(1) // e.g. 10 (for grouping)
-  dayIndex    Int // 1, 2, 3
-  label       String? // "Día 1"
-  datePlanned DateTime? // when you actually do it (optional)
-  notes       String? // General notes for the workout day (e.g. "Entrada en calor: Movilidad A o B")
+  weekNumber  Int       @default(1) // e.g. 3, 4, 10
+  dayIndex    Int       // 1, 2, 3
+  label       String?   // "Día 1" (optional override)
+  datePlanned DateTime? // when scheduled
+  notes       String?   // markdown - e.g. "Entrada en calor: Movilidad A o B"
 
   trainerId String
   athleteId String
@@ -67,8 +75,7 @@ model WorkoutDay {
   trainer User @relation("TrainerWorkoutDays", fields: [trainerId], references: [id])
   athlete User @relation("AthleteWorkoutDays", fields: [athleteId], references: [id])
 
-  exercises     WorkoutDayExercise[]
-  blockComments WorkoutDayBlockComment[]
+  blocks WorkoutBlock[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -76,79 +83,61 @@ model WorkoutDay {
   @@unique([athleteId, weekNumber, dayIndex])
 }
 
-// ---------- Block comments ----------
-
-model WorkoutDayBlockComment {
+model WorkoutBlock {
   id           String @id @default(uuid())
   workoutDayId String
-  block        Block // warmup / a / b / c / d
-  comment      String // markdown supported for links
 
-  workoutDay WorkoutDay @relation(fields: [workoutDayId], references: [id], onDelete: Cascade)
+  order   Int     // 0, 1, 2, 3 (for sorting: warmup=0, a=1, b=2, c=3)
+  label   String? // "A", "B", "Bloque pliométrico", "Entrada en calor"
+  comment String? // markdown - e.g. "Descanso entre serie de 30 seg a 1 min..."
+
+  workoutDay WorkoutDay             @relation(fields: [workoutDayId], references: [id], onDelete: Cascade)
+  exercises  WorkoutBlockExercise[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([workoutDayId, block])
+  @@unique([workoutDayId, order])
 }
 
-// ---------- Exercise library ----------
+model WorkoutBlockExercise {
+  id             String @id @default(uuid())
+  workoutBlockId String
+  exerciseId     String
 
-model Exercise {
-  id           String  @id @default(uuid())
-  name         String // e.g. "Sentadilla búlgara"
-  instructions String? // markdown supported - short notes for form cues, can include links
-  videoUrl     String? // YouTube link
-  hasWeight    Boolean @default(false)
-  tags         String[] @default([]) // e.g. ["fuerza", "pliometrico", "core"]
+  order    Int      // 1, 2 (A1, A2 within block A)
+  comment  String?  // markdown - e.g. "Reps por lado", "NO BALANCEAR"
+  variants String[] @default([]) // e.g. ["tempo_3_1_0", "explosivo"]
 
-  workoutDayExercises WorkoutDayExercise[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// ---------- Workout day exercises (with sets, feedback) ----------
-
-model WorkoutDayExercise {
-  id           String @id @default(uuid())
-  exerciseId   String
-  workoutDayId String
-
-  block    Block // warmup / a / b / c / d
-  order    Int // order inside the block (A1=1, A2=2, B1=3, etc.)
-  comment  String? // markdown - e.g. "Reps por lado y peso total", "El peso equivale por mancuerna"
-  variants String[] @default([]) // e.g. ["concentrica_explosiva", "core_activo"]
-
-  exercise   Exercise   @relation(fields: [exerciseId], references: [id])
-  workoutDay WorkoutDay @relation(fields: [workoutDayId], references: [id], onDelete: Cascade)
-  sets       Set[]
+  workoutBlock WorkoutBlock @relation(fields: [workoutBlockId], references: [id], onDelete: Cascade)
+  exercise     Exercise     @relation(fields: [exerciseId], references: [id])
+  sets         Set[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([workoutDayId, block, order])
+  @@unique([workoutBlockId, order])
 }
 
 // ---------- Sets (prescribed by trainer) ----------
 
 model Set {
-  id                   String @id @default(uuid())
-  workoutDayExerciseId String
+  id                     String @id @default(uuid())
+  workoutBlockExerciseId String
 
-  setIndex        Int // 1, 2, 3, 4, 5 (for ordering sets)
-  reps            Int? // e.g. 8 (null if timed exercise)
-  weightKg        Float? // e.g. 60 (null if bodyweight or no weight)
-  durationSeconds Int? // for timed exercises like "40 seg" or holds
-  repsPerSide     Boolean @default(false) // true if "Reps por lado" (reps per side)
+  setIndex        Int      // 1, 2, 3... (for ordering)
+  reps            Int?     // e.g. 8 (null if timed)
+  weightKg        Float?   // e.g. 60 (null if bodyweight)
+  durationSeconds Int?     // for timed exercises like "40 seg"
+  repsPerSide     Boolean  @default(false) // true if "c/lado"
 
-  workoutDayExercise WorkoutDayExercise @relation(fields: [workoutDayExerciseId], references: [id], onDelete: Cascade)
-  log                SetLog? // actual execution data
+  workoutBlockExercise WorkoutBlockExercise @relation(fields: [workoutBlockExerciseId], references: [id], onDelete: Cascade)
+  log                  SetLog?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([workoutDayExerciseId, setIndex])
+  @@unique([workoutBlockExerciseId, setIndex])
 }
 
 // ---------- Set logs (actual execution by athlete) ----------
@@ -157,13 +146,13 @@ model SetLog {
   id    String @id @default(uuid())
   setId String @unique
 
-  actualReps            Int? // what you actually did
-  actualWeightKg        Float? // what you actually lifted
-  actualDurationSeconds Int? // how long you actually held
-  actualRpe             Int? // 1-10, how hard it felt
-  completed             Boolean  @default(false) // did you do it at all?
-  skipped               Boolean  @default(false) // explicitly skipped?
-  notes                 String? // "felt easy", "grip failed", "subbed with X"
+  actualReps            Int?
+  actualWeightKg        Float?
+  actualDurationSeconds Int?
+  actualRpe             Int?     // 1-10
+  completed             Boolean  @default(false)
+  skipped               Boolean  @default(false)
+  notes                 String?  // "grip failed", "subbed with X"
 
   completedAt DateTime @default(now())
 
