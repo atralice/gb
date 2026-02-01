@@ -41,63 +41,169 @@ async function seed() {
   const exerciseMap = new Map<string, { id: string }>();
 
   const exercises = [
-    { name: "Sentadilla bulgara", tags: ["fuerza", "piernas", "unilateral"] },
-    { name: "Press de hombros (sentado)", tags: ["fuerza", "hombros"] },
-    { name: "Dominada", tags: ["fuerza", "espalda", "pull"] },
-    { name: "Salto unilateral con cajón", tags: ["pliometrico", "piernas"] },
-    { name: "Slam ball", tags: ["pliometrico", "full body"] },
-    { name: "Hip Thrust", tags: ["fuerza", "gluteos"] },
-    { name: "Vuelta al mundo kb", tags: ["core", "estabilidad"] },
-    { name: "Peso muerto trap bar", tags: ["fuerza", "piernas", "espalda"] },
+    {
+      name: "Sentadilla bulgara",
+      tags: ["fuerza", "piernas", "unilateral"],
+      videoUrl: "https://www.youtube.com/watch?v=2C-uNgKwPLE",
+    },
+    {
+      name: "Press de hombros (sentado)",
+      tags: ["fuerza", "hombros"],
+      videoUrl: "https://www.youtube.com/watch?v=qEwKCR5JCog",
+    },
+    {
+      name: "Dominada",
+      tags: ["fuerza", "espalda", "pull"],
+      videoUrl: "https://www.youtube.com/watch?v=eGo4IYlbE5g",
+    },
+    {
+      name: "Salto unilateral con cajón",
+      tags: ["pliometrico", "piernas"],
+      videoUrl: null,
+    },
+    {
+      name: "Slam ball",
+      tags: ["pliometrico", "full body"],
+      videoUrl: "https://www.youtube.com/watch?v=1WlgV6sHpdE",
+    },
+    {
+      name: "Hip Thrust",
+      tags: ["fuerza", "gluteos"],
+      videoUrl: "https://www.youtube.com/watch?v=SEdqd1n0cvg",
+    },
+    {
+      name: "Vuelta al mundo kb",
+      tags: ["core", "estabilidad"],
+      videoUrl: null,
+    },
+    {
+      name: "Peso muerto trap bar",
+      tags: ["fuerza", "piernas", "espalda"],
+      videoUrl: "https://www.youtube.com/watch?v=IlvnWHHCrYs",
+    },
     {
       name: "Press inclinado a un brazo",
       tags: ["fuerza", "pecho", "unilateral"],
+      videoUrl: "https://www.youtube.com/watch?v=8nNi8jbbUPE",
     },
-    { name: "Salto vertical sin contramovimiento", tags: ["pliometrico"] },
+    {
+      name: "Salto vertical sin contramovimiento",
+      tags: ["pliometrico"],
+      videoUrl: null,
+    },
     {
       name: "Desplazamiento lateral explosivo",
       tags: ["pliometrico", "agilidad"],
+      videoUrl: null,
     },
-    { name: "Plyo push ups", tags: ["pliometrico", "pecho"] },
-    { name: "Remo con trap bar", tags: ["fuerza", "espalda"] },
-    { name: "Curl nórdico sin materiales", tags: ["fuerza", "isquiotibiales"] },
-    { name: "Dead bug con disco brazos", tags: ["core"] },
+    {
+      name: "Plyo push ups",
+      tags: ["pliometrico", "pecho"],
+      videoUrl: "https://www.youtube.com/watch?v=PGWKJnVbL1c",
+    },
+    { name: "Remo con trap bar", tags: ["fuerza", "espalda"], videoUrl: null },
+    {
+      name: "Curl nórdico sin materiales",
+      tags: ["fuerza", "isquiotibiales"],
+      videoUrl: "https://www.youtube.com/watch?v=Uc5S7P8bZQE",
+    },
+    {
+      name: "Dead bug con disco brazos",
+      tags: ["core"],
+      videoUrl: "https://www.youtube.com/watch?v=I5xbsA71v1A",
+    },
     {
       name: "Sidelying hip con mini band",
       tags: ["fuerza", "gluteos", "activacion"],
+      videoUrl: null,
     },
-    { name: "Sentadilla con barra", tags: ["fuerza", "piernas"] },
-    { name: "Press mancuerna banco plano", tags: ["fuerza", "pecho"] },
-    { name: "Salto vertical con barra", tags: ["pliometrico", "potencia"] },
-    { name: "Saltos al cajón 60cm", tags: ["pliometrico"] },
-    { name: "Saltos al cajón 70cm", tags: ["pliometrico"] },
-    { name: "Cosaco squat", tags: ["fuerza", "movilidad", "piernas"] },
-    { name: "Espinales en maquina", tags: ["fuerza", "espalda baja"] },
-    { name: "Pallof", tags: ["core", "anti-rotacion"] },
-    { name: "Rotacion tronco", tags: ["movilidad", "warmup"] },
-    { name: "Estiramiento psoas dinamico", tags: ["movilidad", "warmup"] },
+    {
+      name: "Sentadilla con barra",
+      tags: ["fuerza", "piernas"],
+      videoUrl: "https://www.youtube.com/watch?v=ultWZbUMPL8",
+    },
+    {
+      name: "Press mancuerna banco plano",
+      tags: ["fuerza", "pecho"],
+      videoUrl: "https://www.youtube.com/watch?v=VmB1G1K7v94",
+    },
+    {
+      name: "Salto vertical con barra",
+      tags: ["pliometrico", "potencia"],
+      videoUrl: null,
+    },
+    {
+      name: "Saltos al cajón 60cm",
+      tags: ["pliometrico"],
+      videoUrl: "https://www.youtube.com/watch?v=NBY9-kTuHEk",
+    },
+    {
+      name: "Saltos al cajón 70cm",
+      tags: ["pliometrico"],
+      videoUrl: "https://www.youtube.com/watch?v=NBY9-kTuHEk",
+    },
+    {
+      name: "Cosaco squat",
+      tags: ["fuerza", "movilidad", "piernas"],
+      videoUrl: "https://www.youtube.com/watch?v=tpczTeSkHz0",
+    },
+    {
+      name: "Espinales en maquina",
+      tags: ["fuerza", "espalda baja"],
+      videoUrl: null,
+    },
+    {
+      name: "Pallof",
+      tags: ["core", "anti-rotacion"],
+      videoUrl: "https://www.youtube.com/watch?v=AH_QZLm_0-s",
+    },
+    { name: "Rotacion tronco", tags: ["movilidad", "warmup"], videoUrl: null },
+    {
+      name: "Estiramiento psoas dinamico",
+      tags: ["movilidad", "warmup"],
+      videoUrl: null,
+    },
     {
       name: "Flexión de tobillo dinámico desde altura",
       tags: ["movilidad", "warmup"],
+      videoUrl: null,
     },
     {
       name: "Apertura de pecho contra pared o cajón",
       tags: ["movilidad", "warmup"],
+      videoUrl: null,
     },
-    { name: "Parabrisas con piernas", tags: ["movilidad", "warmup"] },
-    { name: "Dorsiflexión con banda", tags: ["movilidad", "warmup"] },
+    {
+      name: "Parabrisas con piernas",
+      tags: ["movilidad", "warmup"],
+      videoUrl: null,
+    },
+    {
+      name: "Dorsiflexión con banda",
+      tags: ["movilidad", "warmup"],
+      videoUrl: null,
+    },
     {
       name: "Peso muerto a 1 pierna c/ peso",
       tags: ["fuerza", "piernas", "unilateral"],
+      videoUrl: "https://www.youtube.com/watch?v=Xw3eANvU8yc",
     },
-    { name: "Remo a un brazo", tags: ["fuerza", "espalda", "unilateral"] },
-    { name: "Hiperextensiones", tags: ["fuerza", "espalda baja"] },
-    { name: "Revolver la olla c/ pelota", tags: ["core"] },
+    {
+      name: "Remo a un brazo",
+      tags: ["fuerza", "espalda", "unilateral"],
+      videoUrl: "https://www.youtube.com/watch?v=roCP6wCXPqo",
+    },
+    {
+      name: "Hiperextensiones",
+      tags: ["fuerza", "espalda baja"],
+      videoUrl: "https://www.youtube.com/watch?v=ph3pddpKzzw",
+    },
+    { name: "Revolver la olla c/ pelota", tags: ["core"], videoUrl: null },
   ];
 
-  for (const { name, tags } of exercises) {
+  for (const { name, tags, videoUrl } of exercises) {
     const exercise = await prisma.exercise.create({
-      data: { name, tags },
+      data: { name, tags, videoUrl },
     });
     exerciseMap.set(name, exercise);
   }
