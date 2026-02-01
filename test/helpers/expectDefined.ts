@@ -33,3 +33,23 @@ export function expectInstanceOf<T>(
   // eslint-disable-next-line no-restricted-syntax, jest/valid-expect
   expect(value).toBeInstanceOf(constructor);
 }
+
+export function expectHasProperty<K extends string, T extends object>(
+  value: T,
+  key: K
+): asserts value is T & Record<K, unknown> {
+  // eslint-disable-next-line no-restricted-syntax, jest/valid-expect
+  expect(key in value, `Expected object to have property "${key}"`).toBe(true);
+}
+
+export function expectDate(value: unknown): Date {
+  // eslint-disable-next-line no-restricted-syntax, jest/valid-expect
+  expect(value).toBeInstanceOf(Date);
+  // eslint-disable-next-line no-restricted-syntax, jest/valid-expect, @typescript-eslint/consistent-type-assertions
+  expect(
+    Number.isNaN((value as Date).getTime()),
+    "Expected valid Date"
+  ).toBe(false);
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  return value as Date;
+}
