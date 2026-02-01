@@ -6,9 +6,10 @@ export async function getAvailableWorkoutDays() {
       id: true,
       dayIndex: true,
       weekNumber: true,
+      weekStartDate: true,
       label: true,
     },
-    orderBy: [{ weekNumber: "desc" }, { dayIndex: "asc" }],
+    orderBy: [{ weekStartDate: "desc" }, { dayIndex: "asc" }],
   });
 
   return workoutDays;
