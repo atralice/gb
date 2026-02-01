@@ -6,8 +6,16 @@ import WorkoutHeader from "./WorkoutHeader";
 import BlockContent from "./BlockContent";
 import DayPickerDrawer from "./DayPickerDrawer";
 import ExerciseDetailDrawer from "./ExerciseDetailDrawer";
+import SetEditDrawer from "./SetEditDrawer";
+import { updateSet } from "@/lib/workouts/actions/updateSet";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
 import type { AvailableWorkoutDay } from "@/lib/workouts/getAvailableWorkoutDays";
+import type { Set as PrismaSet } from "@prisma/client";
+
+type SetForEdit = Pick<
+  PrismaSet,
+  "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide" | "durationSeconds"
+>;
 
 type WorkoutViewerProps = {
   workoutDay: NonNullable<WorkoutDayWithBlocks>;
@@ -31,6 +39,10 @@ export default function WorkoutViewer({
     | NonNullable<WorkoutDayWithBlocks>["blocks"][number]["exercises"][number]
     | null
   >(null);
+  const [selectedSet, setSelectedSet] = useState<{
+    set: SetForEdit;
+    exerciseName: string;
+  } | null>(null);
 
   const blocks = workoutDay.blocks.filter((b) => b.exercises.length > 0);
   const activeBlock = blocks[activeBlockIndex];
@@ -101,6 +113,9 @@ export default function WorkoutViewer({
           <BlockContent
             block={activeBlock}
             onExerciseTap={setSelectedExercise}
+            onSetDoubleTap={(set, exerciseName) =>
+              setSelectedSet({ set, exerciseName })
+            }
           />
         )}
       </div>
@@ -118,6 +133,24 @@ export default function WorkoutViewer({
         exercise={selectedExercise}
         open={!!selectedExercise}
         onOpenChange={(open) => !open && setSelectedExercise(null)}
+      />
+
+      <SetEditDrawer
+        set={selectedSet?.set ?? null}
+        exerciseName={selectedSet?.exerciseName ?? ""}
+        open={!!selectedSet}
+        onOpenChange={(open) => !open && setSelectedSet(null)}
+        onSave={async (setId, values) => {
+          if (!selectedSet) return;
+          await updateSet({
+            setId,
+            reps: values.reps ?? null,
+            weightKg: values.weightKg ?? null,
+            durationSeconds: values.durationSeconds ?? null,
+            repsPerSide: selectedSet.set.repsPerSide,
+          });
+          router.refresh();
+        }}
       />
     </div>
   );

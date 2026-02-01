@@ -2,17 +2,25 @@
 
 import ExerciseCard from "./ExerciseCard";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
+import type { Set as PrismaSet } from "@prisma/client";
 
 type Block = NonNullable<WorkoutDayWithBlocks>["blocks"][number];
+
+type SetForEdit = Pick<
+  PrismaSet,
+  "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide" | "durationSeconds"
+>;
 
 type BlockContentProps = {
   block: Block;
   onExerciseTap: (exercise: Block["exercises"][number]) => void;
+  onSetDoubleTap: (set: SetForEdit, exerciseName: string) => void;
 };
 
 export default function BlockContent({
   block,
   onExerciseTap,
+  onSetDoubleTap,
 }: BlockContentProps) {
   return (
     <div className="p-4">
@@ -45,6 +53,7 @@ export default function BlockContent({
             comment={exercise.comment}
             sets={exercise.sets}
             onExerciseTap={() => onExerciseTap(exercise)}
+            onSetDoubleTap={onSetDoubleTap}
           />
         ))}
       </div>

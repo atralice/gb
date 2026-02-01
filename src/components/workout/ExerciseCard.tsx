@@ -24,6 +24,7 @@ type ExerciseCardProps = {
   comment: string | null;
   sets: SetForDisplay[];
   onExerciseTap: () => void;
+  onSetDoubleTap: (set: SetForDisplay, exerciseName: string) => void;
 };
 
 export default function ExerciseCard({
@@ -31,6 +32,7 @@ export default function ExerciseCard({
   comment,
   sets,
   onExerciseTap,
+  onSetDoubleTap,
 }: ExerciseCardProps) {
   const [completedSets, setCompletedSets] = useState<Set<string>>(new Set());
 
@@ -133,9 +135,7 @@ export default function ExerciseCard({
               completed={completedSets.has(set.id)}
               colorClasses={colorClasses}
               onTap={() => toggleSet(set.id)}
-              onDoubleTap={() => {
-                console.log("Double tap - open edit modal for set", set.id);
-              }}
+              onDoubleTap={() => onSetDoubleTap(set, exercise.name)}
             />
           );
         })}
