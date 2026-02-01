@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
 import EditableWorkoutCarousel from "./EditableWorkoutCarousel";
+import NavButton from "@/components/ui/NavButton";
 
 type WorkoutPlanEditorProps = {
   athleteId: string;
@@ -46,20 +47,16 @@ const WorkoutPlanEditor = ({
       {/* Week selector */}
       <div className="mb-3 flex flex-wrap gap-1.5">
         {weeks.map((week) => (
-          <button
+          <NavButton
             key={week}
+            isActive={selectedWeek === week}
             onClick={() => {
               setSelectedWeek(week);
               setSelectedDayIndex(null);
             }}
-            className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-              selectedWeek === week
-                ? "bg-slate-900 text-white"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-            }`}
           >
             Semana {week}
-          </button>
+          </NavButton>
         ))}
       </div>
 
@@ -67,17 +64,13 @@ const WorkoutPlanEditor = ({
       {selectedWeek && selectedWeekDays.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-1.5">
           {selectedWeekDays.map((day) => (
-            <button
+            <NavButton
               key={day.id}
+              isActive={selectedDayIndex === day.dayIndex}
               onClick={() => setSelectedDayIndex(day.dayIndex)}
-              className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-                selectedDayIndex === day.dayIndex
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              }`}
             >
               {day.label || `Día ${day.dayIndex}`}
-            </button>
+            </NavButton>
           ))}
         </div>
       )}

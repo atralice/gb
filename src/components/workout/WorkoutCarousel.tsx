@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
-import { cn } from "@/lib/cn";
 import ExerciseCard from "./ExerciseCard";
 import BlockHeader from "./BlockHeader";
+import NavButton from "@/components/ui/NavButton";
 import { getBlockLabel } from "@/lib/workouts/partition";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
 
@@ -107,18 +107,13 @@ const WorkoutCarousel = ({ workoutDay }: WorkoutCarouselProps) => {
       {blocksWithExercises.length > 1 && (
         <div className="mb-2 flex flex-wrap gap-1.5">
           {blocksWithExercises.map((block, index) => (
-            <button
+            <NavButton
               key={block.id}
+              isActive={activeBlockIndex === index}
               onClick={() => selectBlock(index)}
-              className={cn(
-                "rounded px-2 py-1 text-xs font-medium transition-colors",
-                activeBlockIndex === index
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              )}
             >
               {getBlockLabel(block)}
-            </button>
+            </NavButton>
           ))}
         </div>
       )}

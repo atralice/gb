@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
-import { cn } from "@/lib/cn";
 import EditableExerciseCard from "./EditableExerciseCard";
 import EditableBlockHeader from "./EditableBlockHeader";
+import NavButton from "@/components/ui/NavButton";
 import { getBlockLabel } from "@/lib/workouts/partition";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
 
@@ -87,18 +87,13 @@ const EditableWorkoutCarousel = ({
       {blocksWithExercises.length > 1 && (
         <div className="mb-1.5 flex flex-wrap gap-1.5">
           {blocksWithExercises.map((block, index) => (
-            <button
+            <NavButton
               key={block.id}
+              isActive={activeBlockIndex === index}
               onClick={() => selectBlock(index)}
-              className={cn(
-                "rounded px-2 py-1 text-[10px] font-medium transition-colors",
-                activeBlockIndex === index
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              )}
             >
               {getBlockLabel(block)}
-            </button>
+            </NavButton>
           ))}
         </div>
       )}
