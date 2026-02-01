@@ -135,9 +135,10 @@ async function seed() {
   // Helper function to create a complete workout day
   async function createWorkoutDay(data: WorkoutDayData) {
     // Calculate weekStartDate based on weekNumber (base: Monday 2025-01-06)
-    const baseDate = new Date("2025-01-06");
-    const weekStartDate = new Date(baseDate);
-    weekStartDate.setDate(baseDate.getDate() + (data.weekNumber - 1) * 7);
+    // Use a simpler approach - just create the date explicitly for each week
+    const weekStartDate = new Date(
+      Date.UTC(2025, 0, 6 + (data.weekNumber - 1) * 7)
+    );
 
     const workoutDay = await prisma.workoutDay.create({
       data: {
