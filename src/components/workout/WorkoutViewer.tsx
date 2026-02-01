@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import WorkoutHeader from "./WorkoutHeader";
 import BlockContent from "./BlockContent";
@@ -35,6 +35,41 @@ export default function WorkoutViewer({
   const blocks = workoutDay.blocks.filter((b) => b.exercises.length > 0);
   const activeBlock = blocks[activeBlockIndex];
 
+  // Swipe handling
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    touchStartX.current = touch.clientX;
+    touchStartY.current = touch.clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+
+    const deltaX = touch.clientX - touchStartX.current;
+    const deltaY = touch.clientY - touchStartY.current;
+
+    // Only trigger if horizontal swipe is dominant and significant
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+      if (deltaX > 0 && activeBlockIndex > 0) {
+        // Swipe right - go to previous block
+        handleBlockSelect(activeBlockIndex - 1);
+      } else if (deltaX < 0 && activeBlockIndex < blocks.length - 1) {
+        // Swipe left - go to next block
+        handleBlockSelect(activeBlockIndex + 1);
+      }
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
   const handleBlockSelect = (index: number) => {
     setActiveBlockIndex(index);
     const params = new URLSearchParams(searchParams.toString());
@@ -57,9 +92,18 @@ export default function WorkoutViewer({
         isSuggested={isSuggested}
       />
 
-      {activeBlock && (
-        <BlockContent block={activeBlock} onExerciseTap={setSelectedExercise} />
-      )}
+      <div
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        className="min-h-[calc(100vh-120px)]"
+      >
+        {activeBlock && (
+          <BlockContent
+            block={activeBlock}
+            onExerciseTap={setSelectedExercise}
+          />
+        )}
+      </div>
 
       <DayPickerDrawer
         open={dayPickerOpen}
