@@ -7,7 +7,7 @@ import type { Set } from "@prisma/client";
 
 type SetForDisplay = Pick<
   Set,
-  "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide"
+  "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide" | "durationSeconds"
 >;
 
 type EditableSetPillProps = {
@@ -21,8 +21,13 @@ const EditableSetPill = ({ set, colorClasses }: EditableSetPillProps) => {
   const [weightKg, setWeightKg] = useState<string>(
     set.weightKg?.toString() ?? ""
   );
+  const [durationSeconds, setDurationSeconds] = useState<string>(
+    set.durationSeconds?.toString() ?? ""
+  );
   const [repsPerSide, setRepsPerSide] = useState(set.repsPerSide);
   const [isPending, startTransition] = useTransition();
+
+  const hasDuration = set.durationSeconds != null && set.durationSeconds > 0;
 
   const handleSave = () => {
     startTransition(async () => {
@@ -30,6 +35,7 @@ const EditableSetPill = ({ set, colorClasses }: EditableSetPillProps) => {
         setId: set.id,
         reps: reps ? parseInt(reps, 10) : null,
         weightKg: weightKg ? parseFloat(weightKg) : null,
+        durationSeconds: durationSeconds ? parseInt(durationSeconds, 10) : null,
         repsPerSide,
       });
       setIsEditing(false);
@@ -39,6 +45,7 @@ const EditableSetPill = ({ set, colorClasses }: EditableSetPillProps) => {
   const handleCancel = () => {
     setReps(set.reps?.toString() ?? "");
     setWeightKg(set.weightKg?.toString() ?? "");
+    setDurationSeconds(set.durationSeconds?.toString() ?? "");
     setRepsPerSide(set.repsPerSide);
     setIsEditing(false);
   };
@@ -51,34 +58,47 @@ const EditableSetPill = ({ set, colorClasses }: EditableSetPillProps) => {
           colorClasses
         )}
       >
-        <div className="flex items-center gap-1">
+        {hasDuration ? (
           <input
             type="number"
-            value={reps}
-            onChange={(e) => setReps(e.target.value)}
-            placeholder="Reps"
-            className="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
+            value={durationSeconds}
+            onChange={(e) => setDurationSeconds(e.target.value)}
+            placeholder="Segundos"
+            className="w-20 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
             disabled={isPending}
           />
-          <label className="flex items-center gap-1 text-xs">
+        ) : (
+          <>
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                value={reps}
+                onChange={(e) => setReps(e.target.value)}
+                placeholder="Reps"
+                className="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
+                disabled={isPending}
+              />
+              <label className="flex items-center gap-1 text-xs">
+                <input
+                  type="checkbox"
+                  checked={repsPerSide}
+                  onChange={(e) => setRepsPerSide(e.target.checked)}
+                  disabled={isPending}
+                />
+                c/lado
+              </label>
+            </div>
             <input
-              type="checkbox"
-              checked={repsPerSide}
-              onChange={(e) => setRepsPerSide(e.target.checked)}
+              type="number"
+              step="0.1"
+              value={weightKg}
+              onChange={(e) => setWeightKg(e.target.value)}
+              placeholder="kg"
+              className="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
               disabled={isPending}
             />
-            c/lado
-          </label>
-        </div>
-        <input
-          type="number"
-          step="0.1"
-          value={weightKg}
-          onChange={(e) => setWeightKg(e.target.value)}
-          placeholder="kg"
-          className="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
-          disabled={isPending}
-        />
+          </>
+        )}
         <div className="flex gap-1">
           <button
             onClick={handleSave}
@@ -111,15 +131,24 @@ const EditableSetPill = ({ set, colorClasses }: EditableSetPillProps) => {
       )}
     >
       <div className="text-2xl font-bold leading-none">
-        {set.reps ?? "x"}{" "}
-        <span className="text-[8px] opacity-50">{repsPerSideText}</span>
+        {hasDuration ? (
+          <>
+            {set.durationSeconds}
+            <span className="text-sm font-medium">s</span>
+          </>
+        ) : (
+          <>
+            {set.reps ?? "x"}
+            <span className="text-[8px] opacity-50">{repsPerSideText}</span>
+          </>
+        )}
       </div>
       {hasWeight && (
         <div className="mt-1 text-xs font-semibold opacity-90">
           {set.weightKg}kg
         </div>
       )}
-      {!hasWeight && repsPerSideText && (
+      {!hasWeight && !hasDuration && repsPerSideText && (
         <div className="mt-1 text-xs font-semibold opacity-90">
           {repsPerSideText.trim()}
         </div>

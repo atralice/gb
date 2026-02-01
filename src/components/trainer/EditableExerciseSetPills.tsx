@@ -7,7 +7,7 @@ import type { Set } from "@prisma/client";
 
 type SetForDisplay = Pick<
   Set,
-  "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide"
+  "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide" | "durationSeconds"
 >;
 
 type EditableExerciseSetPillsProps = {

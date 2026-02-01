@@ -5,7 +5,7 @@ import type { Set } from "@prisma/client";
 
 type SetForDisplay = Pick<
   Set,
-  "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide"
+  "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide" | "durationSeconds"
 >;
 
 type ExerciseSetPillsProps = {
@@ -26,6 +26,8 @@ const ExerciseSetPills = ({ sets }: ExerciseSetPillsProps) => {
     <div className="mt-3 flex flex-wrap gap-2">
       {sets.map((set, index) => {
         const hasWeight = set.weightKg != null && set.weightKg > 0;
+        const hasDuration =
+          set.durationSeconds != null && set.durationSeconds > 0;
         const repsPerSide = set.repsPerSide ? " c/lado" : "";
         const volume = volumes[index] ?? 0;
         const colorClasses = getSetColorClasses(volume, minVolume, maxVolume);
@@ -39,15 +41,24 @@ const ExerciseSetPills = ({ sets }: ExerciseSetPillsProps) => {
             )}
           >
             <div className="text-2xl font-bold leading-none">
-              {set.reps ?? "x"}{" "}
-              <span className="text-[8px] opacity-50">{repsPerSide}</span>
+              {hasDuration ? (
+                <>
+                  {set.durationSeconds}
+                  <span className="text-sm font-medium">s</span>
+                </>
+              ) : (
+                <>
+                  {set.reps ?? "x"}
+                  <span className="text-[8px] opacity-50">{repsPerSide}</span>
+                </>
+              )}
             </div>
             {hasWeight && (
               <div className="mt-1 text-xs font-semibold opacity-90">
                 {set.weightKg}kg
               </div>
             )}
-            {!hasWeight && repsPerSide && (
+            {!hasWeight && !hasDuration && repsPerSide && (
               <div className="mt-1 text-xs font-semibold opacity-90">
                 {repsPerSide.trim()}
               </div>

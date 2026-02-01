@@ -4,7 +4,15 @@ import ExerciseSetPills from "./ExerciseSetPills";
 type WorkoutBlockExerciseWithRelations = WorkoutBlockExercise & {
   exercise: { id: string; name: string; videoUrl: string | null };
   sets: Array<
-    Pick<Set, "id" | "setIndex" | "reps" | "weightKg" | "repsPerSide">
+    Pick<
+      Set,
+      | "id"
+      | "setIndex"
+      | "reps"
+      | "weightKg"
+      | "repsPerSide"
+      | "durationSeconds"
+    >
   >;
 };
 
