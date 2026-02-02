@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "test": "./script/test-with-lock.sh",
+    "db:seed:prod": "script/env-runner.sh production ./prisma/seed.ts",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "type-check": "tsc",
     "prepare": "husky"
@@ -49,7 +50,7 @@
     "@testing-library/react": "16.3.2",
     "@types/bun": "^1.3.8",
     "@types/lodash": "^4.17.23",
-    "@types/node": "25.1.0",
+    "@types/node": "25.2.0",
     "@types/react": "19.2.10",
     "@types/react-dom": "19.2.3",
     "@typescript-eslint/eslint-plugin": "8.54.0",

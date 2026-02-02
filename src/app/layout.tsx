@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Next.js Starter",
+  title: "Bloc",
   description:
-    "A modern Next.js starter with TypeScript, Tailwind CSS, and Prisma",
+    "Bloc es una plataforma de entrenamiento personalizado para atletas de fuerza y resistencia.",
 };
 
 type RootLayoutProps = {
