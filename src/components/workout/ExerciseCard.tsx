@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useCallback } from "react";
 import { cn } from "@/lib/cn";
-import { useDoubleTap } from "@/hooks/useDoubleTap";
 import SetPill from "./SetPill";
 import Spinner from "@/components/ui/Spinner";
 import { calculateVolumes, getSetColorClasses } from "@/lib/workouts/setColors";
@@ -13,6 +12,9 @@ import {
   skipSets,
 } from "@/lib/workouts/actions/logSet";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
+
+const DOUBLE_TAP_DELAY = 250;
+const LONG_PRESS_THRESHOLD = 500;
 
 type Block = NonNullable<WorkoutDayWithBlocks>["blocks"][number];
 type Exercise = Block["exercises"][number]["exercise"];
@@ -51,12 +53,15 @@ export default function ExerciseCard({
   const [skippedSets, setSkippedSets] = useState<Set<string>>(initialSkipped);
 
   const { volumes, minVolume, maxVolume } = calculateVolumes(sets);
-  // All completed means every set is either completed or skipped
+
+  // Computed states
+  const allCompleted = completedSets.size === sets.length && sets.length > 0;
+  const allSkipped = skippedSets.size === sets.length && sets.length > 0;
   const allDone =
     sets.length > 0 &&
     sets.every((s) => completedSets.has(s.id) || skippedSets.has(s.id));
-  const allCompleted = completedSets.size === sets.length && sets.length > 0;
-  const allSkipped = skippedSets.size === sets.length && sets.length > 0;
+  // Mixed done: all sets are done (completed or skipped) but not all the same
+  const mixedDone = allDone && !allCompleted && !allSkipped;
 
   const handleSetTap = (tappedSet: SetWithLog, index: number) => {
     const isCompleted = completedSets.has(tappedSet.id);
@@ -91,19 +96,15 @@ export default function ExerciseCard({
         void logSet({ setId: tappedSet.id, completed: false });
       });
     } else {
-      // Complete this set and all previous sets with default values
-      const setsToComplete = sets.slice(0, index + 1);
+      // Complete this set and all previous non-skipped sets
+      const setsToComplete = sets
+        .slice(0, index + 1)
+        .filter((s) => !skippedSets.has(s.id));
       const setIdsToComplete = setsToComplete.map((s) => s.id);
 
       setCompletedSets((prev) => {
         const next = new Set(prev);
         setIdsToComplete.forEach((id) => next.add(id));
-        return next;
-      });
-      // Remove from skipped if any
-      setSkippedSets((prev) => {
-        const next = new Set(prev);
-        setIdsToComplete.forEach((id) => next.delete(id));
         return next;
       });
 
@@ -144,7 +145,7 @@ export default function ExerciseCard({
     }
   };
 
-  const handleToggleAll = () => {
+  const handleToggleAll = useCallback(() => {
     const allSetIds = sets.map((s) => s.id);
 
     if (allDone) {
@@ -165,22 +166,109 @@ export default function ExerciseCard({
         void logSets({ setIds: allSetIds, completed: true });
       });
     }
-  };
+  }, [sets, allDone]);
 
-  const { handleTap: handleCardTap } = useDoubleTap({
-    onDoubleTap: handleToggleAll,
-  });
+  const handleSkipAll = useCallback(() => {
+    const allSetIds = sets.map((s) => s.id);
+
+    if (allSkipped) {
+      // Un-skip all sets
+      setSkippedSets(new Set());
+      startTransition(() => {
+        void skipSets({ setIds: allSetIds, skipped: false });
+      });
+    } else {
+      // Skip all sets (and uncomplete any completed)
+      setSkippedSets(new Set(allSetIds));
+      setCompletedSets(new Set());
+      startTransition(() => {
+        void skipSets({ setIds: allSetIds, skipped: true });
+      });
+    }
+  }, [sets, allSkipped]);
+
+  // Double-tap handling for the card
+  const cardTapCountRef = useRef(0);
+  const cardTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCardClick = useCallback(
+    (e: React.MouseEvent) => {
+      cardTapCountRef.current += 1;
+
+      if (cardTapCountRef.current === 1) {
+        cardTapTimeoutRef.current = setTimeout(() => {
+          cardTapCountRef.current = 0;
+        }, DOUBLE_TAP_DELAY);
+      } else if (cardTapCountRef.current === 2) {
+        e.preventDefault();
+        if (cardTapTimeoutRef.current) {
+          clearTimeout(cardTapTimeoutRef.current);
+        }
+        cardTapCountRef.current = 0;
+        handleToggleAll();
+      }
+    },
+    [handleToggleAll]
+  );
+
+  // Long press handling for the checkbox button
+  const btnLongPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const btnIsLongPressRef = useRef(false);
+
+  const handleBtnTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      e.stopPropagation();
+      btnIsLongPressRef.current = false;
+
+      btnLongPressRef.current = setTimeout(() => {
+        btnIsLongPressRef.current = true;
+        handleSkipAll();
+      }, LONG_PRESS_THRESHOLD);
+    },
+    [handleSkipAll]
+  );
+
+  const handleBtnTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      e.stopPropagation();
+      e.preventDefault(); // Prevent click event from firing
+
+      if (btnLongPressRef.current) {
+        clearTimeout(btnLongPressRef.current);
+        btnLongPressRef.current = null;
+      }
+
+      // If it was a long press, don't trigger toggle
+      if (btnIsLongPressRef.current) {
+        btnIsLongPressRef.current = false;
+        return;
+      }
+
+      // Regular tap - toggle all
+      handleToggleAll();
+    },
+    [handleToggleAll]
+  );
+
+  const handleBtnTouchCancel = useCallback(() => {
+    if (btnLongPressRef.current) {
+      clearTimeout(btnLongPressRef.current);
+      btnLongPressRef.current = null;
+    }
+  }, []);
 
   return (
     <div
-      onClick={handleCardTap}
+      onClick={handleCardClick}
       className={cn(
         "cursor-pointer rounded-2xl border bg-white p-4 shadow-sm transition-all duration-300",
         allCompleted
           ? "border-emerald-300 bg-emerald-50/30"
           : allSkipped
             ? "border-slate-200 bg-slate-50/50"
-            : "border-slate-100",
+            : mixedDone
+              ? "border-slate-300 bg-slate-50/30"
+              : "border-slate-100",
         isPending && "opacity-70"
       )}
     >
@@ -197,7 +285,7 @@ export default function ExerciseCard({
               "text-base font-semibold leading-tight transition-colors group-hover:text-blue-600",
               allCompleted
                 ? "text-emerald-700"
-                : allSkipped
+                : allSkipped || mixedDone
                   ? "text-slate-500"
                   : "text-slate-800"
             )}
@@ -220,6 +308,9 @@ export default function ExerciseCard({
         </button>
 
         <button
+          onTouchStart={handleBtnTouchStart}
+          onTouchEnd={handleBtnTouchEnd}
+          onTouchCancel={handleBtnTouchCancel}
           onClick={(e) => {
             e.stopPropagation();
             handleToggleAll();
@@ -229,7 +320,7 @@ export default function ExerciseCard({
             "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all",
             allCompleted
               ? "border-emerald-500 bg-emerald-500 hover:bg-emerald-600"
-              : allSkipped
+              : allSkipped || mixedDone
                 ? "border-slate-400 bg-slate-400 hover:bg-slate-500"
                 : "border-slate-300 hover:border-slate-400 hover:bg-slate-50",
             isPending && "cursor-wait"
@@ -239,7 +330,9 @@ export default function ExerciseCard({
             <Spinner
               size="sm"
               className={
-                allCompleted || allSkipped ? "text-white" : "text-slate-400"
+                allCompleted || allSkipped || mixedDone
+                  ? "text-white"
+                  : "text-slate-400"
               }
             />
           ) : allCompleted ? (
@@ -269,6 +362,17 @@ export default function ExerciseCard({
                 strokeLinejoin="round"
                 d="M13 5l7 7-7 7M5 5l7 7-7 7"
               />
+            </svg>
+          ) : mixedDone ? (
+            // Horizontal line to indicate "done but mixed"
+            <svg
+              className="h-4 w-4 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
             </svg>
           ) : null}
         </button>

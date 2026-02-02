@@ -17,6 +17,7 @@ export const getAvailableWorkoutDays = cache(async () => {
                 select: {
                   id: true,
                   completed: true,
+                  skipped: true,
                 },
               },
             },
@@ -34,7 +35,13 @@ export const getAvailableWorkoutDays = cache(async () => {
     );
     const totalSets = allSets.length;
     const completedSets = allSets.filter((s) => s.completed).length;
+    const skippedSets = allSets.filter((s) => s.skipped).length;
+    const doneSets = completedSets + skippedSets;
+
+    // isCompleted = all sets completed (not skipped)
     const isCompleted = totalSets > 0 && completedSets === totalSets;
+    // isDone = all sets either completed or skipped
+    const isDone = totalSets > 0 && doneSets === totalSets;
 
     return {
       id: day.id,
@@ -43,8 +50,10 @@ export const getAvailableWorkoutDays = cache(async () => {
       weekStartDate: day.weekStartDate,
       label: day.label,
       isCompleted,
+      isDone,
       totalSets,
       completedSets,
+      skippedSets,
     };
   });
 });

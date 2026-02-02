@@ -59,21 +59,33 @@ export default function WorkoutViewer({
     });
   const activeBlock = blocks[activeBlockIndex];
 
-  // Compute block completion status
-  const isBlockCompleted = (block: (typeof blocks)[number]) => {
+  // Compute block status
+  type BlockStatus = "incomplete" | "completed" | "skipped" | "mixed";
+
+  const getBlockStatus = (block: (typeof blocks)[number]): BlockStatus => {
     const allSets = block.exercises.flatMap((e) => e.sets);
-    return allSets.length > 0 && allSets.every((s) => s.completed);
+    if (allSets.length === 0) return "incomplete";
+
+    const completedCount = allSets.filter((s) => s.completed).length;
+    const skippedCount = allSets.filter((s) => s.skipped).length;
+    const doneCount = completedCount + skippedCount;
+
+    if (doneCount < allSets.length) return "incomplete";
+    if (completedCount === allSets.length) return "completed";
+    if (skippedCount === allSets.length) return "skipped";
+    return "mixed";
   };
 
-  const blocksWithCompletion = blocks.map((block) => ({
+  const blocksWithStatus = blocks.map((block) => ({
     id: block.id,
     label: block.label,
     order: block.order,
-    isCompleted: isBlockCompleted(block),
+    status: getBlockStatus(block),
   }));
 
   const isDayCompleted =
-    blocks.length > 0 && blocks.every((b) => isBlockCompleted(b));
+    blocks.length > 0 &&
+    blocksWithStatus.every((b) => b.status === "completed");
 
   // Swipe handling
   const touchStartX = useRef<number | null>(null);
@@ -117,19 +129,16 @@ export default function WorkoutViewer({
     router.replace(`?${params.toString()}`, { scroll: false });
   };
 
-  const isSuggested = workoutDay.dayIndex === suggestedDay;
-
   return (
     <div className="min-h-screen bg-slate-50">
       <WorkoutHeader
         dayIndex={workoutDay.dayIndex}
         weekNumber={workoutDay.weekNumber}
         weekStartDate={workoutDay.weekStartDate}
-        blocks={blocksWithCompletion}
+        blocks={blocksWithStatus}
         activeBlockIndex={activeBlockIndex}
         onBlockSelect={handleBlockSelect}
         onHeaderTap={() => setDayPickerOpen(true)}
-        isSuggested={isSuggested}
         isDayCompleted={isDayCompleted}
       />
 

@@ -1,10 +1,6 @@
 import prisma from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
-import { addWeeks } from "date-fns";
 import truncateDb from "test/helpers/test-helpers";
-
-/** Monday of week 1 (reference for computing weekStartDate from weekNumber). */
-const WEEK_1_START = new Date("2025-01-06");
 
 async function seed() {
   console.log("🌱 Seeding database...");
@@ -204,19 +200,19 @@ async function seed() {
   type WorkoutDayData = {
     dayIndex: number;
     weekNumber: number;
+    weekStartDate: Date;
     notes?: string | null;
     blocks: BlockData[];
   };
 
   // Helper function to create a complete workout day
   async function createWorkoutDay(data: WorkoutDayData) {
-    const weekStartDate = addWeeks(WEEK_1_START, data.weekNumber - 1);
     const workoutDay = await prisma.workoutDay.create({
       data: {
         trainerId: trainer.id,
         athleteId: athlete.id,
         weekNumber: data.weekNumber,
-        weekStartDate,
+        weekStartDate: data.weekStartDate,
         dayIndex: data.dayIndex,
         label: `Día ${data.dayIndex}`,
         notes: data.notes,
@@ -272,13 +268,14 @@ async function seed() {
   }
 
   // ============================================
-  // SEMANA 3
+  // SEMANA 3 (starts 2025-01-19)
   // ============================================
 
   // Día 1, Semana 3
   await createWorkoutDay({
     dayIndex: 1,
     weekNumber: 3,
+    weekStartDate: new Date("2025-01-19"),
     notes: "Entrada en calor: Movilidad A o B",
     blocks: [
       {
@@ -355,6 +352,7 @@ async function seed() {
   await createWorkoutDay({
     dayIndex: 2,
     weekNumber: 3,
+    weekStartDate: new Date("2025-01-19"),
     notes: "Entrada en calor: Movilidad A o B",
     blocks: [
       {
@@ -449,6 +447,7 @@ async function seed() {
   await createWorkoutDay({
     dayIndex: 3,
     weekNumber: 3,
+    weekStartDate: new Date("2025-01-19"),
     notes: "Entrada en calor: Movilidad A o B",
     blocks: [
       {
@@ -565,13 +564,14 @@ async function seed() {
   });
 
   // ============================================
-  // SEMANA 4
+  // SEMANA 4 (starts 2025-01-26)
   // ============================================
 
   // Día 1, Semana 4
   await createWorkoutDay({
     dayIndex: 1,
     weekNumber: 4,
+    weekStartDate: new Date("2025-01-26"),
     notes: "Entrada en calor: Movilidad A o B",
     blocks: [
       {
@@ -648,6 +648,7 @@ async function seed() {
   await createWorkoutDay({
     dayIndex: 2,
     weekNumber: 4,
+    weekStartDate: new Date("2025-01-26"),
     notes: "Entrada en calor: Movilidad A o B",
     blocks: [
       {
@@ -742,6 +743,7 @@ async function seed() {
   await createWorkoutDay({
     dayIndex: 3,
     weekNumber: 4,
+    weekStartDate: new Date("2025-01-26"),
     notes: "Entrada en calor: Movilidad A o B",
     blocks: [
       {
