@@ -4,11 +4,14 @@ import { useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import SetPill from "./SetPill";
+import Spinner from "@/components/ui/Spinner";
 import { calculateVolumes, getSetColorClasses } from "@/lib/workouts/setColors";
 import {
-  upsertSetLog,
-  upsertSetLogs,
-} from "@/lib/workouts/actions/upsertSetLog";
+  logSet,
+  logSets,
+  skipSet,
+  skipSets,
+} from "@/lib/workouts/actions/logSet";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
 
 type Block = NonNullable<WorkoutDayWithBlocks>["blocks"][number];
@@ -38,16 +41,44 @@ export default function ExerciseCard({
 
   // Initialize from server state
   const initialCompleted = new Set(
-    sets.filter((s) => s.log?.completed).map((s) => s.id)
+    sets.filter((s) => s.completed).map((s) => s.id)
+  );
+  const initialSkipped = new Set(
+    sets.filter((s) => s.skipped).map((s) => s.id)
   );
   const [completedSets, setCompletedSets] =
     useState<Set<string>>(initialCompleted);
+  const [skippedSets, setSkippedSets] = useState<Set<string>>(initialSkipped);
 
   const { volumes, minVolume, maxVolume } = calculateVolumes(sets);
+  // All completed means every set is either completed or skipped
+  const allDone =
+    sets.length > 0 &&
+    sets.every((s) => completedSets.has(s.id) || skippedSets.has(s.id));
   const allCompleted = completedSets.size === sets.length && sets.length > 0;
+  const allSkipped = skippedSets.size === sets.length && sets.length > 0;
 
   const handleSetTap = (tappedSet: SetWithLog, index: number) => {
     const isCompleted = completedSets.has(tappedSet.id);
+    const isSkipped = skippedSets.has(tappedSet.id);
+
+    // If skipped, tapping should unskip and complete
+    if (isSkipped) {
+      setSkippedSets((prev) => {
+        const next = new Set(prev);
+        next.delete(tappedSet.id);
+        return next;
+      });
+      setCompletedSets((prev) => {
+        const next = new Set(prev);
+        next.add(tappedSet.id);
+        return next;
+      });
+      startTransition(() => {
+        void logSet({ setId: tappedSet.id, completed: true });
+      });
+      return;
+    }
 
     if (isCompleted) {
       // Uncomplete this set only
@@ -57,7 +88,7 @@ export default function ExerciseCard({
         return next;
       });
       startTransition(() => {
-        void upsertSetLog({ setId: tappedSet.id, completed: false });
+        void logSet({ setId: tappedSet.id, completed: false });
       });
     } else {
       // Complete this set and all previous sets with default values
@@ -69,9 +100,46 @@ export default function ExerciseCard({
         setIdsToComplete.forEach((id) => next.add(id));
         return next;
       });
+      // Remove from skipped if any
+      setSkippedSets((prev) => {
+        const next = new Set(prev);
+        setIdsToComplete.forEach((id) => next.delete(id));
+        return next;
+      });
 
       startTransition(() => {
-        void upsertSetLogs({ setIds: setIdsToComplete, completed: true });
+        void logSets({ setIds: setIdsToComplete, completed: true });
+      });
+    }
+  };
+
+  const handleSetLongPress = (tappedSet: SetWithLog) => {
+    const isSkipped = skippedSets.has(tappedSet.id);
+
+    if (isSkipped) {
+      // Un-skip
+      setSkippedSets((prev) => {
+        const next = new Set(prev);
+        next.delete(tappedSet.id);
+        return next;
+      });
+      startTransition(() => {
+        void skipSet({ setId: tappedSet.id, skipped: false });
+      });
+    } else {
+      // Skip (also uncomplete)
+      setSkippedSets((prev) => {
+        const next = new Set(prev);
+        next.add(tappedSet.id);
+        return next;
+      });
+      setCompletedSets((prev) => {
+        const next = new Set(prev);
+        next.delete(tappedSet.id);
+        return next;
+      });
+      startTransition(() => {
+        void skipSet({ setId: tappedSet.id, skipped: true });
       });
     }
   };
@@ -79,17 +147,22 @@ export default function ExerciseCard({
   const handleToggleAll = () => {
     const allSetIds = sets.map((s) => s.id);
 
-    if (allCompleted) {
-      // Uncomplete all sets
+    if (allDone) {
+      // Reset all sets (uncomplete and unskip)
       setCompletedSets(new Set());
+      setSkippedSets(new Set());
       startTransition(() => {
-        void upsertSetLogs({ setIds: allSetIds, completed: false });
+        void Promise.all([
+          logSets({ setIds: allSetIds, completed: false }),
+          skipSets({ setIds: allSetIds, skipped: false }),
+        ]);
       });
     } else {
-      // Complete all sets
+      // Complete all sets (and unskip any skipped)
       setCompletedSets(new Set(allSetIds));
+      setSkippedSets(new Set());
       startTransition(() => {
-        void upsertSetLogs({ setIds: allSetIds, completed: true });
+        void logSets({ setIds: allSetIds, completed: true });
       });
     }
   };
@@ -105,7 +178,9 @@ export default function ExerciseCard({
         "cursor-pointer rounded-2xl border bg-white p-4 shadow-sm transition-all duration-300",
         allCompleted
           ? "border-emerald-300 bg-emerald-50/30"
-          : "border-slate-100",
+          : allSkipped
+            ? "border-slate-200 bg-slate-50/50"
+            : "border-slate-100",
         isPending && "opacity-70"
       )}
     >
@@ -120,7 +195,11 @@ export default function ExerciseCard({
           <h3
             className={cn(
               "text-base font-semibold leading-tight transition-colors group-hover:text-blue-600",
-              allCompleted ? "text-emerald-700" : "text-slate-800"
+              allCompleted
+                ? "text-emerald-700"
+                : allSkipped
+                  ? "text-slate-500"
+                  : "text-slate-800"
             )}
           >
             {exercise.name}
@@ -145,14 +224,25 @@ export default function ExerciseCard({
             e.stopPropagation();
             handleToggleAll();
           }}
+          disabled={isPending}
           className={cn(
             "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all",
             allCompleted
               ? "border-emerald-500 bg-emerald-500 hover:bg-emerald-600"
-              : "border-slate-300 hover:border-slate-400 hover:bg-slate-50"
+              : allSkipped
+                ? "border-slate-400 bg-slate-400 hover:bg-slate-500"
+                : "border-slate-300 hover:border-slate-400 hover:bg-slate-50",
+            isPending && "cursor-wait"
           )}
         >
-          {allCompleted && (
+          {isPending ? (
+            <Spinner
+              size="sm"
+              className={
+                allCompleted || allSkipped ? "text-white" : "text-slate-400"
+              }
+            />
+          ) : allCompleted ? (
             <svg
               className="h-4 w-4 text-white"
               fill="none"
@@ -166,7 +256,21 @@ export default function ExerciseCard({
                 d="M5 13l4 4L19 7"
               />
             </svg>
-          )}
+          ) : allSkipped ? (
+            <svg
+              className="h-3.5 w-3.5 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13 5l7 7-7 7M5 5l7 7-7 7"
+              />
+            </svg>
+          ) : null}
         </button>
       </div>
 
@@ -179,17 +283,25 @@ export default function ExerciseCard({
           const volume = volumes[index] ?? 0;
           const colorClasses = getSetColorClasses(volume, minVolume, maxVolume);
 
+          // Use logged values if they exist, otherwise fall back to prescription
+          const displayReps = set.actualReps ?? set.reps;
+          const displayWeight = set.actualWeightKg ?? set.weightKg;
+          const displayDuration =
+            set.actualDurationSeconds ?? set.durationSeconds;
+
           return (
             <SetPill
               key={set.id}
-              reps={set.reps}
-              weightKg={set.weightKg}
-              durationSeconds={set.durationSeconds}
+              reps={displayReps}
+              weightKg={displayWeight}
+              durationSeconds={displayDuration}
               repsPerSide={set.repsPerSide}
               completed={completedSets.has(set.id)}
+              skipped={skippedSets.has(set.id)}
               colorClasses={colorClasses}
               onTap={() => handleSetTap(set, index)}
               onDoubleTap={() => onSetDoubleTap(set, exercise.name, sets)}
+              onLongPress={() => handleSetLongPress(set)}
             />
           );
         })}

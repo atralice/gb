@@ -121,45 +121,34 @@ model WorkoutBlockExercise {
   @@unique([workoutBlockId, order])
 }
 
-// ---------- Sets (prescribed by trainer) ----------
+// ---------- Sets (prescribed + logged) ----------
 
 model Set {
   id                     String @id @default(uuid())
   workoutBlockExerciseId String
 
   setIndex        Int      // 1, 2, 3... (for ordering)
+
+  // Prescribed (by trainer)
   reps            Int?     // e.g. 8 (null if timed)
   weightKg        Float?   // e.g. 60 (null if bodyweight)
   durationSeconds Int?     // for timed exercises like "40 seg"
   repsPerSide     Boolean  @default(false) // true if "c/lado"
 
-  workoutBlockExercise WorkoutBlockExercise @relation(fields: [workoutBlockExerciseId], references: [id], onDelete: Cascade)
-  log                  SetLog?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([workoutBlockExerciseId, setIndex])
-}
-
-// ---------- Set logs (actual execution by athlete) ----------
-
-model SetLog {
-  id    String @id @default(uuid())
-  setId String @unique
-
+  // Actual (logged by athlete)
   actualReps            Int?
   actualWeightKg        Float?
   actualDurationSeconds Int?
   actualRpe             Int?     // 1-10
   completed             Boolean  @default(false)
   skipped               Boolean  @default(false)
-  notes                 String?  // "grip failed", "subbed with X"
+  logNotes              String?  // "grip failed", "subbed with X"
+  completedAt           DateTime?
 
-  completedAt DateTime @default(now())
-
-  set Set @relation(fields: [setId], references: [id], onDelete: Cascade)
+  workoutBlockExercise WorkoutBlockExercise @relation(fields: [workoutBlockExerciseId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([workoutBlockExerciseId, setIndex])
 }

@@ -16,11 +16,7 @@ export const getAvailableWorkoutDays = cache(async () => {
               sets: {
                 select: {
                   id: true,
-                  log: {
-                    select: {
-                      completed: true,
-                    },
-                  },
+                  completed: true,
                 },
               },
             },
@@ -37,7 +33,7 @@ export const getAvailableWorkoutDays = cache(async () => {
       b.exercises.flatMap((e) => e.sets)
     );
     const totalSets = allSets.length;
-    const completedSets = allSets.filter((s) => s.log?.completed).length;
+    const completedSets = allSets.filter((s) => s.completed).length;
     const isCompleted = totalSets > 0 && completedSets === totalSets;
 
     return {

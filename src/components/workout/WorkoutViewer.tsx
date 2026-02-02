@@ -7,10 +7,7 @@ import BlockContent from "./BlockContent";
 import DayPickerDrawer from "./DayPickerDrawer";
 import ExerciseDetailDrawer from "./ExerciseDetailDrawer";
 import SetEditDrawer from "./SetEditDrawer";
-import {
-  upsertSetLog,
-  upsertSetLogs,
-} from "@/lib/workouts/actions/upsertSetLog";
+import { logSet, logSets } from "@/lib/workouts/actions/logSet";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
 import type { AvailableWorkoutDay } from "@/lib/workouts/getAvailableWorkoutDays";
 
@@ -65,7 +62,7 @@ export default function WorkoutViewer({
   // Compute block completion status
   const isBlockCompleted = (block: (typeof blocks)[number]) => {
     const allSets = block.exercises.flatMap((e) => e.sets);
-    return allSets.length > 0 && allSets.every((s) => s.log?.completed);
+    return allSets.length > 0 && allSets.every((s) => s.completed);
   };
 
   const blocksWithCompletion = blocks.map((block) => ({
@@ -179,12 +176,12 @@ export default function WorkoutViewer({
           const setIndex = selectedSet.allSets.findIndex((s) => s.id === setId);
           const previousSetIds = selectedSet.allSets
             .slice(0, setIndex)
-            .filter((s) => !s.log?.completed)
+            .filter((s) => !s.completed)
             .map((s) => s.id);
 
           // Complete this set with custom values, and previous sets with defaults
           await Promise.all([
-            upsertSetLog({
+            logSet({
               setId,
               completed: true,
               actualReps: values.reps ?? null,
@@ -192,7 +189,7 @@ export default function WorkoutViewer({
               actualDurationSeconds: values.durationSeconds ?? null,
             }),
             previousSetIds.length > 0
-              ? upsertSetLogs({ setIds: previousSetIds, completed: true })
+              ? logSets({ setIds: previousSetIds, completed: true })
               : Promise.resolve(),
           ]);
           router.refresh();

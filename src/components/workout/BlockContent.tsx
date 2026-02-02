@@ -46,7 +46,7 @@ export default function BlockContent({
         {block.exercises.map((exercise) => {
           // Include completed count in key to force remount when server data changes
           const completedCount = exercise.sets.filter(
-            (s) => s.log?.completed
+            (s) => s.completed
           ).length;
           return (
             <ExerciseCard
@@ -63,7 +63,7 @@ export default function BlockContent({
 
       {/* Interaction hint */}
       <p className="mt-6 text-center text-xs text-slate-400">
-        Tap set para completar · Doble tap para editar
+        Tap: completar · Doble tap: editar · Mantener: saltar
       </p>
     </div>
   );

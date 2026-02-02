@@ -31,9 +31,6 @@ export const getWorkoutDay = cache(async function getWorkoutDay(
                 orderBy: {
                   setIndex: "asc",
                 },
-                include: {
-                  log: true,
-                },
               },
             },
             orderBy: { order: "asc" },

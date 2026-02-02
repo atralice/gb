@@ -37,7 +37,12 @@ function setupTestDb() {
       throw new Error("DATABASE_URL must contain 'test'");
     }
 
-    execSync(`npx prisma migrate reset --force`);
+    execSync(`npx prisma migrate reset --force`, {
+      env: {
+        ...process.env,
+        PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION: "test database reset",
+      },
+    });
   } catch (error) {
     console.error("Preload script failed:", error);
     process.exit(1);

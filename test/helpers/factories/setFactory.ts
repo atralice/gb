@@ -13,6 +13,15 @@ function buildAttributes(): Set {
     weightKg: 60,
     durationSeconds: null,
     repsPerSide: false,
+    // Actual (logged) values
+    actualReps: null,
+    actualWeightKg: null,
+    actualDurationSeconds: null,
+    actualRpe: null,
+    completed: false,
+    skipped: false,
+    logNotes: null,
+    completedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

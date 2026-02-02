@@ -1,6 +1,10 @@
 import prisma from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
+import { addWeeks } from "date-fns";
 import truncateDb from "test/helpers/test-helpers";
+
+/** Monday of week 1 (reference for computing weekStartDate from weekNumber). */
+const WEEK_1_START = new Date("2025-01-06");
 
 async function seed() {
   console.log("🌱 Seeding database...");
@@ -44,161 +48,127 @@ async function seed() {
     {
       name: "Sentadilla bulgara",
       tags: ["fuerza", "piernas", "unilateral"],
-      videoUrl: "https://www.youtube.com/watch?v=2C-uNgKwPLE",
+      videoUrl: "https://youtu.be/IE3ZJezh-wc?t=41",
     },
-    {
-      name: "Press de hombros (sentado)",
-      tags: ["fuerza", "hombros"],
-      videoUrl: "https://www.youtube.com/watch?v=qEwKCR5JCog",
-    },
+    { name: "Press de hombros (sentado)", tags: ["fuerza", "hombros"] },
     {
       name: "Dominada",
       tags: ["fuerza", "espalda", "pull"],
-      videoUrl: "https://www.youtube.com/watch?v=eGo4IYlbE5g",
+      videoUrl: "https://youtu.be/637SzIkGrIg?t=111",
     },
-    {
-      name: "Salto unilateral con cajón",
-      tags: ["pliometrico", "piernas"],
-      videoUrl: null,
-    },
+    { name: "Salto unilateral con cajón", tags: ["pliometrico", "piernas"] },
     {
       name: "Slam ball",
       tags: ["pliometrico", "full body"],
-      videoUrl: "https://www.youtube.com/watch?v=1WlgV6sHpdE",
+      videoUrl: "https://www.youtube.com/watch?v=ePo39a3mSfk",
     },
     {
       name: "Hip Thrust",
       tags: ["fuerza", "gluteos"],
-      videoUrl: "https://www.youtube.com/watch?v=SEdqd1n0cvg",
+      videoUrl: "https://youtu.be/1lNuXVeJ1X8?t=2",
     },
-    {
-      name: "Vuelta al mundo kb",
-      tags: ["core", "estabilidad"],
-      videoUrl: null,
-    },
+    { name: "Vuelta al mundo kb", tags: ["core", "estabilidad"] },
     {
       name: "Peso muerto trap bar",
       tags: ["fuerza", "piernas", "espalda"],
-      videoUrl: "https://www.youtube.com/watch?v=IlvnWHHCrYs",
+      videoUrl: "https://youtu.be/FcMwHOyaZYU?si=CGrCVbLLsGjQ9Rtl&t=35",
     },
     {
       name: "Press inclinado a un brazo",
       tags: ["fuerza", "pecho", "unilateral"],
-      videoUrl: "https://www.youtube.com/watch?v=8nNi8jbbUPE",
     },
-    {
-      name: "Salto vertical sin contramovimiento",
-      tags: ["pliometrico"],
-      videoUrl: null,
-    },
+    { name: "Salto vertical sin contramovimiento", tags: ["pliometrico"] },
     {
       name: "Desplazamiento lateral explosivo",
       tags: ["pliometrico", "agilidad"],
-      videoUrl: null,
+      videoUrl: "https://www.youtube.com/watch?v=TH83JG97ddg",
     },
-    {
-      name: "Plyo push ups",
-      tags: ["pliometrico", "pecho"],
-      videoUrl: "https://www.youtube.com/watch?v=PGWKJnVbL1c",
-    },
-    { name: "Remo con trap bar", tags: ["fuerza", "espalda"], videoUrl: null },
+    { name: "Plyo push ups", tags: ["pliometrico", "pecho"] },
+    { name: "Remo con trap bar", tags: ["fuerza", "espalda"] },
     {
       name: "Curl nórdico sin materiales",
       tags: ["fuerza", "isquiotibiales"],
-      videoUrl: "https://www.youtube.com/watch?v=Uc5S7P8bZQE",
+      videoUrl: "https://youtu.be/7NYAaiWRkcE?si=b5zzRCXWOR1TwtyD&t=1",
     },
     {
       name: "Dead bug con disco brazos",
       tags: ["core"],
-      videoUrl: "https://www.youtube.com/watch?v=I5xbsA71v1A",
+      videoUrl: "https://youtu.be/0qumyQw0IZg?si=YZlZlI2EeHXe1qKN",
     },
     {
       name: "Sidelying hip con mini band",
       tags: ["fuerza", "gluteos", "activacion"],
-      videoUrl: null,
     },
     {
       name: "Sentadilla con barra",
       tags: ["fuerza", "piernas"],
-      videoUrl: "https://www.youtube.com/watch?v=ultWZbUMPL8",
+      videoUrl: "https://youtu.be/dsCuiccYNGs?si=lE-vf1ODG6bFo5MZ&t=3",
     },
     {
       name: "Press mancuerna banco plano",
       tags: ["fuerza", "pecho"],
-      videoUrl: "https://www.youtube.com/watch?v=VmB1G1K7v94",
+      videoUrl: "https://youtu.be/2XtuyTKBU5A?si=1vcxLyQbgFX-Omsi&t=60",
     },
-    {
-      name: "Salto vertical con barra",
-      tags: ["pliometrico", "potencia"],
-      videoUrl: null,
-    },
-    {
-      name: "Saltos al cajón 60cm",
-      tags: ["pliometrico"],
-      videoUrl: "https://www.youtube.com/watch?v=NBY9-kTuHEk",
-    },
-    {
-      name: "Saltos al cajón 70cm",
-      tags: ["pliometrico"],
-      videoUrl: "https://www.youtube.com/watch?v=NBY9-kTuHEk",
-    },
+    { name: "Salto vertical con barra", tags: ["pliometrico", "potencia"] },
+    { name: "Saltos al cajón 60cm", tags: ["pliometrico"] },
+    { name: "Saltos al cajón 70cm", tags: ["pliometrico"] },
     {
       name: "Cosaco squat",
       tags: ["fuerza", "movilidad", "piernas"],
-      videoUrl: "https://www.youtube.com/watch?v=tpczTeSkHz0",
+      videoUrl: "https://youtu.be/6TcJFYY-Ohw?si=OzckHaOjcbFlamvG&t=4",
     },
-    {
-      name: "Espinales en maquina",
-      tags: ["fuerza", "espalda baja"],
-      videoUrl: null,
-    },
+    { name: "Espinales en maquina", tags: ["fuerza", "espalda baja"] },
     {
       name: "Pallof",
       tags: ["core", "anti-rotacion"],
-      videoUrl: "https://www.youtube.com/watch?v=AH_QZLm_0-s",
+      videoUrl: "https://www.youtube.com/shorts/93Zi2TlxWb0",
     },
-    { name: "Rotacion tronco", tags: ["movilidad", "warmup"], videoUrl: null },
+    {
+      name: "Rotacion tronco",
+      tags: ["movilidad", "warmup"],
+      videoUrl: "https://youtu.be/PbibrM21A5Y?t=394",
+    },
     {
       name: "Estiramiento psoas dinamico",
       tags: ["movilidad", "warmup"],
-      videoUrl: null,
+      videoUrl: "https://youtu.be/NrGKox43q9Y?t=111",
     },
     {
       name: "Flexión de tobillo dinámico desde altura",
       tags: ["movilidad", "warmup"],
-      videoUrl: null,
+      videoUrl: "https://youtu.be/y34-lmVu9h4?t=90",
     },
     {
       name: "Apertura de pecho contra pared o cajón",
       tags: ["movilidad", "warmup"],
-      videoUrl: null,
+      videoUrl: "https://youtu.be/vGDRKIMoBVk?t=222",
     },
     {
       name: "Parabrisas con piernas",
       tags: ["movilidad", "warmup"],
-      videoUrl: null,
+      videoUrl: "https://youtu.be/cxm4pEa4CxI?t=217",
     },
     {
       name: "Dorsiflexión con banda",
       tags: ["movilidad", "warmup"],
-      videoUrl: null,
+      videoUrl: "https://youtu.be/U1jT82VwURg?si=6IMlCrFY2PQ-YFwH&t=330",
     },
     {
       name: "Peso muerto a 1 pierna c/ peso",
       tags: ["fuerza", "piernas", "unilateral"],
-      videoUrl: "https://www.youtube.com/watch?v=Xw3eANvU8yc",
+      videoUrl: "https://youtu.be/WRmlDXgHT30?si=1WrHC-Zl-3bJBjDV&t=3",
     },
-    {
-      name: "Remo a un brazo",
-      tags: ["fuerza", "espalda", "unilateral"],
-      videoUrl: "https://www.youtube.com/watch?v=roCP6wCXPqo",
-    },
+    { name: "Remo a un brazo", tags: ["fuerza", "espalda", "unilateral"] },
     {
       name: "Hiperextensiones",
       tags: ["fuerza", "espalda baja"],
-      videoUrl: "https://www.youtube.com/watch?v=ph3pddpKzzw",
+      videoUrl: "https://www.youtube.com/shorts/cffBuDsjxU8",
     },
-    { name: "Revolver la olla c/ pelota", tags: ["core"], videoUrl: null },
+    {
+      name: "Revolver la olla c/ pelota",
+      tags: ["core"],
+      videoUrl: "https://www.youtube.com/watch?v=nrtepyadQyY",
+    },
   ];
 
   for (const { name, tags, videoUrl } of exercises) {
@@ -240,12 +210,7 @@ async function seed() {
 
   // Helper function to create a complete workout day
   async function createWorkoutDay(data: WorkoutDayData) {
-    // Calculate weekStartDate based on weekNumber (base: Monday 2025-01-06)
-    // Use a simpler approach - just create the date explicitly for each week
-    const weekStartDate = new Date(
-      Date.UTC(2025, 0, 6 + (data.weekNumber - 1) * 7)
-    );
-
+    const weekStartDate = addWeeks(WEEK_1_START, data.weekNumber - 1);
     const workoutDay = await prisma.workoutDay.create({
       data: {
         trainerId: trainer.id,
