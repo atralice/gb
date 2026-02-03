@@ -41,6 +41,11 @@ function base64ToBuffer(base64: string): Uint8Array {
 }
 
 async function importKey(hexSecret: string): Promise<CryptoKey> {
+  if (hexSecret.length !== 64) {
+    throw new Error(
+      `SESSION_SECRET must be exactly 64 hex characters. Got ${hexSecret.length}.`
+    );
+  }
   const keyBuffer = hexToBuffer(hexSecret);
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   const buffer = new Uint8Array(keyBuffer).buffer as ArrayBuffer;

@@ -10,7 +10,8 @@ const envSchema = z.object({
   DEBUG: z.string().optional(),
   SESSION_SECRET: z
     .string()
-    .min(64, "SESSION_SECRET must be at least 64 hex characters"),
+    .length(64, "SESSION_SECRET must be exactly 64 hex characters (32 bytes)")
+    .regex(/^[0-9a-fA-F]+$/, "SESSION_SECRET must be a valid hex string"),
 });
 
 type EnvConfig = z.infer<typeof envSchema>;
