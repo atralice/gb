@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
 import truncateDb from "test/helpers/test-helpers";
+import bcrypt from "bcrypt";
 
 async function seed() {
   console.log("🌱 Seeding database...");
@@ -10,32 +11,51 @@ async function seed() {
   await truncateDb();
   console.log("✅ Database truncated");
 
-  // Create trainer and athlete
+  // Hash the shared password
+  const passwordHash = await bcrypt.hash("todobien", 12);
+
+  // Create trainer
   const trainer = await prisma.user.create({
     data: {
       email: "trainer@example.com",
       name: "Solange",
       role: UserRole.trainer,
+      passwordHash,
     },
   });
 
-  const athlete = await prisma.user.create({
+  // Create athletes with passwords
+  const toni = await prisma.user.create({
     data: {
-      email: "athlete@example.com",
+      email: "atralice@gmail.com",
       name: "Toni",
       role: UserRole.athlete,
+      passwordHash,
     },
   });
 
-  // Link trainer to athlete
-  await prisma.trainerAthlete.create({
+  const amani = await prisma.user.create({
     data: {
-      trainerId: trainer.id,
-      athleteId: athlete.id,
+      email: "amanijuanagustin@gmail.com",
+      name: "Amani",
+      role: UserRole.athlete,
+      passwordHash,
     },
   });
 
-  console.log("✅ Created trainer and athlete");
+  const athletes = [toni, amani];
+
+  // Link trainer to athletes
+  for (const athlete of athletes) {
+    await prisma.trainerAthlete.create({
+      data: {
+        trainerId: trainer.id,
+        athleteId: athlete.id,
+      },
+    });
+  }
+
+  console.log("✅ Created trainer and athletes");
 
   // Create exercises (exercise library)
   const exerciseMap = new Map<string, { id: string }>();
@@ -216,12 +236,16 @@ async function seed() {
     blocks: BlockData[];
   };
 
-  // Helper function to create a complete workout day
-  async function createWorkoutDay(data: WorkoutDayData) {
+  // Helper function to create a complete workout day for a specific athlete
+  async function createWorkoutDay(
+    data: WorkoutDayData,
+    athleteId: string,
+    trainerId: string
+  ) {
     const workoutDay = await prisma.workoutDay.create({
       data: {
-        trainerId: trainer.id,
-        athleteId: athlete.id,
+        trainerId,
+        athleteId,
         weekNumber: data.weekNumber,
         weekStartDate: data.weekStartDate,
         dayIndex: data.dayIndex,
@@ -279,784 +303,798 @@ async function seed() {
   }
 
   // ============================================
-  // SEMANA 3 (starts 2025-01-19)
+  // WORKOUT DATA - will be created for all athletes
   // ============================================
 
-  // Día 1, Semana 3
-  await createWorkoutDay({
-    dayIndex: 1,
-    weekNumber: 3,
-    weekStartDate: new Date("2025-01-19"),
-    notes: "Entrada en calor: Movilidad A o B",
-    blocks: [
-      {
-        label: "A",
-        comment:
-          "Bloque pliométrico: Descanso entre serie de 30 seg a 1 min según lo requiera (tenes que estar súper fresco en cada serie)",
-        exercises: [
-          {
-            name: "Saltos al cajón 70cm",
-            sets: [{ reps: 3 }, { reps: 3 }, { reps: 3 }],
-            comment: null,
-          },
-          {
-            name: "Slam ball",
-            sets: [{ reps: 4 }, { reps: 4 }, { reps: 4 }],
-            comment: "Pelota de 5kg crossfit",
-          },
-        ],
-      },
-      {
-        label: "B",
-        comment: null,
-        exercises: [
-          {
-            name: "Peso muerto trap bar",
-            sets: [
-              { weightKg: 60, reps: 5 },
-              { weightKg: 85, reps: 4 },
-              { weightKg: 100, reps: 2 },
-              { weightKg: 100, reps: 2 },
-              { weightKg: 100, reps: 2 },
-            ],
-            comment:
-              "Activar dorsales y NO BALANCEAR LA TRAP, subo y bajo en bloque (no tengo que desarmarme)",
-          },
-          {
-            name: "Sentadilla bulgara",
-            sets: [
-              { weightKg: 15, reps: 6, repsPerSide: true },
-              { weightKg: 25, reps: 5, repsPerSide: true },
-              { weightKg: 35, reps: 4, repsPerSide: true },
-              { weightKg: 35, reps: 4, repsPerSide: true },
-              { weightKg: 35, reps: 4, repsPerSide: true },
-            ],
-            comment:
-              "Reps por lado y peso total (SI NO HAY MANCUERNAS HACELO CON BARRA)",
-          },
-        ],
-      },
-      {
-        label: "C",
-        comment: null,
-        exercises: [
-          {
-            name: "Curl nórdico sin materiales",
-            sets: [{ reps: 10 }, { reps: 8 }, { reps: 8 }],
-            comment: "Frenar la caída sin quebrar lumbar",
-          },
-          {
-            name: "Pallof",
-            sets: [
-              { reps: 8, repsPerSide: true },
-              { reps: 8, repsPerSide: true },
-              { reps: 6, repsPerSide: true },
-            ],
-            comment: null,
-          },
-        ],
-      },
-    ],
-  });
+  const workoutDays: WorkoutDayData[] = [
+    // ============================================
+    // SEMANA 3 (starts 2025-01-19)
+    // ============================================
 
-  // Día 2, Semana 3
-  await createWorkoutDay({
-    dayIndex: 2,
-    weekNumber: 3,
-    weekStartDate: new Date("2025-01-19"),
-    notes: "Entrada en calor: Movilidad A o B",
-    blocks: [
-      {
-        label: "A",
-        comment: null,
-        exercises: [
-          {
-            name: "Sentadilla con barra",
-            sets: [
-              { weightKg: 40, reps: 5 },
-              { weightKg: 50, reps: 4 },
-              { weightKg: 60, reps: 3 },
-              { weightKg: 60, reps: 3 },
-              { weightKg: 60, reps: 3 },
-            ],
-            comment:
-              "Kg sumando barra. Bajo en 2-3 seg, me quedo 1 seg y subo. NO HAGO REBOTE. APRETO GLÚTEO ARRIBA",
-            variants: ["tempo_3_1_0"],
-          },
-          {
-            name: "Press inclinado a un brazo",
-            sets: [
-              { weightKg: 10, reps: 6 },
-              { weightKg: 15, reps: 5 },
-              { weightKg: 20, reps: 4 },
-              { weightKg: 20, reps: 4 },
-              { weightKg: 20, reps: 3 },
-            ],
-            comment: "Acordate del leg drive (pies atrás de las rodillas)",
-          },
-        ],
-      },
-      {
-        label: "B",
-        comment:
-          "Bloque pliométrico: Descanso entre serie de 30 seg a 1 min según lo requiera (tenes que estar súper fresco en cada serie)",
-        exercises: [
-          {
-            name: "Salto vertical sin contramovimiento",
-            sets: [{ reps: 4 }, { reps: 4 }, { reps: 4 }],
-            comment: null,
-          },
-          {
-            name: "Desplazamiento lateral explosivo",
-            sets: [
-              { reps: 4, repsPerSide: true },
-              { reps: 4, repsPerSide: true },
-              { reps: 4, repsPerSide: true },
-            ],
-            comment: null,
-          },
-        ],
-      },
-      {
-        label: "C",
-        comment: null,
-        exercises: [
-          {
-            name: "Hip Thrust",
-            sets: [
-              { weightKg: 100, reps: 6 },
-              { weightKg: 100, reps: 6 },
-              { weightKg: 100, reps: 6 },
-            ],
-            comment: "Kg sumando barra",
-          },
-          {
-            name: "Remo a un brazo",
-            sets: [
-              { weightKg: 25, reps: 6, repsPerSide: true },
-              { weightKg: 25, reps: 6, repsPerSide: true },
-              { weightKg: 25, reps: 6, repsPerSide: true },
-            ],
-            comment: "Llevar la mancuerna hacia la cadera",
-          },
-          {
-            name: "Dead bug con disco brazos",
-            sets: [
-              { weightKg: 10, reps: 8 },
-              { weightKg: 10, reps: 6 },
-              { weightKg: 10, reps: 6 },
-            ],
-            comment:
-              "Con disco de 5kg en las tibias y otro sosteniendo con los brazos, alejo los discos extendiendo piernas y brazos. Columna NEUTRA (a penas retracción pélvica). Extiendo y vuelvo",
-          },
-        ],
-      },
-    ],
-  });
+    // Día 1, Semana 3
+    {
+      dayIndex: 1,
+      weekNumber: 3,
+      weekStartDate: new Date("2025-01-19"),
+      notes: "Entrada en calor: Movilidad A o B",
+      blocks: [
+        {
+          label: "A",
+          comment:
+            "Bloque pliométrico: Descanso entre serie de 30 seg a 1 min según lo requiera (tenes que estar súper fresco en cada serie)",
+          exercises: [
+            {
+              name: "Saltos al cajón 70cm",
+              sets: [{ reps: 3 }, { reps: 3 }, { reps: 3 }],
+              comment: null,
+            },
+            {
+              name: "Slam ball",
+              sets: [{ reps: 4 }, { reps: 4 }, { reps: 4 }],
+              comment: "Pelota de 5kg crossfit",
+            },
+          ],
+        },
+        {
+          label: "B",
+          comment: null,
+          exercises: [
+            {
+              name: "Peso muerto trap bar",
+              sets: [
+                { weightKg: 60, reps: 5 },
+                { weightKg: 85, reps: 4 },
+                { weightKg: 100, reps: 2 },
+                { weightKg: 100, reps: 2 },
+                { weightKg: 100, reps: 2 },
+              ],
+              comment:
+                "Activar dorsales y NO BALANCEAR LA TRAP, subo y bajo en bloque (no tengo que desarmarme)",
+            },
+            {
+              name: "Sentadilla bulgara",
+              sets: [
+                { weightKg: 15, reps: 6, repsPerSide: true },
+                { weightKg: 25, reps: 5, repsPerSide: true },
+                { weightKg: 35, reps: 4, repsPerSide: true },
+                { weightKg: 35, reps: 4, repsPerSide: true },
+                { weightKg: 35, reps: 4, repsPerSide: true },
+              ],
+              comment:
+                "Reps por lado y peso total (SI NO HAY MANCUERNAS HACELO CON BARRA)",
+            },
+          ],
+        },
+        {
+          label: "C",
+          comment: null,
+          exercises: [
+            {
+              name: "Curl nórdico sin materiales",
+              sets: [{ reps: 10 }, { reps: 8 }, { reps: 8 }],
+              comment: "Frenar la caída sin quebrar lumbar",
+            },
+            {
+              name: "Pallof",
+              sets: [
+                { reps: 8, repsPerSide: true },
+                { reps: 8, repsPerSide: true },
+                { reps: 6, repsPerSide: true },
+              ],
+              comment: null,
+            },
+          ],
+        },
+      ],
+    },
 
-  // Día 3, Semana 3
-  await createWorkoutDay({
-    dayIndex: 3,
-    weekNumber: 3,
-    weekStartDate: new Date("2025-01-19"),
-    notes: "Entrada en calor: Movilidad A o B",
-    blocks: [
-      {
-        label: "A",
-        comment: null,
-        exercises: [
-          {
-            name: "Cosaco squat",
-            sets: [
-              { weightKg: 15, reps: 8, repsPerSide: true },
-              { weightKg: 15, reps: 8, repsPerSide: true },
-              { weightKg: 15, reps: 6, repsPerSide: true },
-            ],
-            comment: "Uso una sola mancuerna",
-          },
-          {
-            name: "Dominada",
-            sets: [
-              { weightKg: 0, reps: 5 },
-              { weightKg: 5, reps: 4 },
-              { weightKg: 12.2, reps: 4 },
-              { weightKg: 12.2, reps: 4 },
-              { weightKg: 12.2, reps: 4 },
-            ],
-            comment: "Subir explosivo, bajar en 2 o 3 seg",
-          },
-        ],
-      },
-      {
-        label: "B",
-        comment: null,
-        exercises: [
-          {
-            name: "Peso muerto a 1 pierna c/ peso",
-            sets: [
-              { weightKg: 15, reps: 6, repsPerSide: true },
-              { weightKg: 15, reps: 6, repsPerSide: true },
-              { weightKg: 15, reps: 6, repsPerSide: true },
-            ],
-            comment: null,
-          },
-          {
-            name: "Press mancuerna banco plano",
-            sets: [
-              { weightKg: 17.5, reps: 4 },
-              { weightKg: 17.5, reps: 4 },
-              { weightKg: 17.5, reps: 4 },
-            ],
-            comment: null,
-          },
-        ],
-      },
-      {
-        label: "C",
-        comment: null,
-        exercises: [
-          {
-            name: "Hiperextensiones",
-            sets: [
-              { weightKg: 15, reps: 10 },
-              { weightKg: 15, reps: 8 },
-              { weightKg: 15, reps: 8 },
-            ],
-            comment: "Redondeando espalda",
-          },
-          {
-            name: "Revolver la olla c/ pelota",
-            sets: [
-              { durationSeconds: 40 },
-              { durationSeconds: 40 },
-              { durationSeconds: 40 },
-            ],
-            comment: null,
-          },
-        ],
-      },
-    ],
-  });
+    // Día 2, Semana 3
+    {
+      dayIndex: 2,
+      weekNumber: 3,
+      weekStartDate: new Date("2025-01-19"),
+      notes: "Entrada en calor: Movilidad A o B",
+      blocks: [
+        {
+          label: "A",
+          comment: null,
+          exercises: [
+            {
+              name: "Sentadilla con barra",
+              sets: [
+                { weightKg: 40, reps: 5 },
+                { weightKg: 50, reps: 4 },
+                { weightKg: 60, reps: 3 },
+                { weightKg: 60, reps: 3 },
+                { weightKg: 60, reps: 3 },
+              ],
+              comment:
+                "Kg sumando barra. Bajo en 2-3 seg, me quedo 1 seg y subo. NO HAGO REBOTE. APRETO GLÚTEO ARRIBA",
+              variants: ["tempo_3_1_0"],
+            },
+            {
+              name: "Press inclinado a un brazo",
+              sets: [
+                { weightKg: 10, reps: 6 },
+                { weightKg: 15, reps: 5 },
+                { weightKg: 20, reps: 4 },
+                { weightKg: 20, reps: 4 },
+                { weightKg: 20, reps: 3 },
+              ],
+              comment: "Acordate del leg drive (pies atrás de las rodillas)",
+            },
+          ],
+        },
+        {
+          label: "B",
+          comment:
+            "Bloque pliométrico: Descanso entre serie de 30 seg a 1 min según lo requiera (tenes que estar súper fresco en cada serie)",
+          exercises: [
+            {
+              name: "Salto vertical sin contramovimiento",
+              sets: [{ reps: 4 }, { reps: 4 }, { reps: 4 }],
+              comment: null,
+            },
+            {
+              name: "Desplazamiento lateral explosivo",
+              sets: [
+                { reps: 4, repsPerSide: true },
+                { reps: 4, repsPerSide: true },
+                { reps: 4, repsPerSide: true },
+              ],
+              comment: null,
+            },
+          ],
+        },
+        {
+          label: "C",
+          comment: null,
+          exercises: [
+            {
+              name: "Hip Thrust",
+              sets: [
+                { weightKg: 100, reps: 6 },
+                { weightKg: 100, reps: 6 },
+                { weightKg: 100, reps: 6 },
+              ],
+              comment: "Kg sumando barra",
+            },
+            {
+              name: "Remo a un brazo",
+              sets: [
+                { weightKg: 25, reps: 6, repsPerSide: true },
+                { weightKg: 25, reps: 6, repsPerSide: true },
+                { weightKg: 25, reps: 6, repsPerSide: true },
+              ],
+              comment: "Llevar la mancuerna hacia la cadera",
+            },
+            {
+              name: "Dead bug con disco brazos",
+              sets: [
+                { weightKg: 10, reps: 8 },
+                { weightKg: 10, reps: 6 },
+                { weightKg: 10, reps: 6 },
+              ],
+              comment:
+                "Con disco de 5kg en las tibias y otro sosteniendo con los brazos, alejo los discos extendiendo piernas y brazos. Columna NEUTRA (a penas retracción pélvica). Extiendo y vuelvo",
+            },
+          ],
+        },
+      ],
+    },
 
-  // ============================================
-  // SEMANA 4 (starts 2025-01-26)
-  // ============================================
+    // Día 3, Semana 3
+    {
+      dayIndex: 3,
+      weekNumber: 3,
+      weekStartDate: new Date("2025-01-19"),
+      notes: "Entrada en calor: Movilidad A o B",
+      blocks: [
+        {
+          label: "A",
+          comment: null,
+          exercises: [
+            {
+              name: "Cosaco squat",
+              sets: [
+                { weightKg: 15, reps: 8, repsPerSide: true },
+                { weightKg: 15, reps: 8, repsPerSide: true },
+                { weightKg: 15, reps: 6, repsPerSide: true },
+              ],
+              comment: "Uso una sola mancuerna",
+            },
+            {
+              name: "Dominada",
+              sets: [
+                { weightKg: 0, reps: 5 },
+                { weightKg: 5, reps: 4 },
+                { weightKg: 12.2, reps: 4 },
+                { weightKg: 12.2, reps: 4 },
+                { weightKg: 12.2, reps: 4 },
+              ],
+              comment: "Subir explosivo, bajar en 2 o 3 seg",
+            },
+          ],
+        },
+        {
+          label: "B",
+          comment: null,
+          exercises: [
+            {
+              name: "Peso muerto a 1 pierna c/ peso",
+              sets: [
+                { weightKg: 15, reps: 6, repsPerSide: true },
+                { weightKg: 15, reps: 6, repsPerSide: true },
+                { weightKg: 15, reps: 6, repsPerSide: true },
+              ],
+              comment: null,
+            },
+            {
+              name: "Press mancuerna banco plano",
+              sets: [
+                { weightKg: 17.5, reps: 4 },
+                { weightKg: 17.5, reps: 4 },
+                { weightKg: 17.5, reps: 4 },
+              ],
+              comment: null,
+            },
+          ],
+        },
+        {
+          label: "C",
+          comment: null,
+          exercises: [
+            {
+              name: "Hiperextensiones",
+              sets: [
+                { weightKg: 15, reps: 10 },
+                { weightKg: 15, reps: 8 },
+                { weightKg: 15, reps: 8 },
+              ],
+              comment: "Redondeando espalda",
+            },
+            {
+              name: "Revolver la olla c/ pelota",
+              sets: [
+                { durationSeconds: 40 },
+                { durationSeconds: 40 },
+                { durationSeconds: 40 },
+              ],
+              comment: null,
+            },
+          ],
+        },
+      ],
+    },
 
-  // Día 1, Semana 4
-  await createWorkoutDay({
-    dayIndex: 1,
-    weekNumber: 4,
-    weekStartDate: new Date("2025-01-26"),
-    notes: "Entrada en calor: Movilidad A o B",
-    blocks: [
-      {
-        label: "A",
-        comment:
-          "Bloque pliométrico: Descanso entre serie de 30 seg a 1 min según lo requiera (tenes que estar súper fresco en cada serie)",
-        exercises: [
-          {
-            name: "Saltos al cajón 70cm",
-            sets: [{ reps: 3 }, { reps: 3 }, { reps: 3 }],
-            comment: null,
-          },
-          {
-            name: "Slam ball",
-            sets: [{ reps: 4 }, { reps: 4 }, { reps: 4 }],
-            comment: "Pelota de 5kg crossfit",
-          },
-        ],
-      },
-      {
-        label: "B",
-        comment: null,
-        exercises: [
-          {
-            name: "Peso muerto trap bar",
-            sets: [
-              { weightKg: 60, reps: 5 },
-              { weightKg: 85, reps: 4 },
-              { weightKg: 100, reps: 3 },
-              { weightKg: 100, reps: 2 },
-              { weightKg: 100, reps: 2 },
-            ],
-            comment:
-              "Activar dorsales y NO BALANCEAR LA TRAP, subo y bajo en bloque (no tengo que desarmarme)",
-          },
-          {
-            name: "Sentadilla bulgara",
-            sets: [
-              { weightKg: 15, reps: 6, repsPerSide: true },
-              { weightKg: 25, reps: 5, repsPerSide: true },
-              { weightKg: 35, reps: 6, repsPerSide: true },
-              { weightKg: 35, reps: 4, repsPerSide: true },
-              { weightKg: 35, reps: 4, repsPerSide: true },
-            ],
-            comment:
-              "Reps por lado y peso total (SI NO HAY MANCUERNAS HACELO CON BARRA)",
-          },
-        ],
-      },
-      {
-        label: "C",
-        comment: null,
-        exercises: [
-          {
-            name: "Curl nórdico sin materiales",
-            sets: [{ reps: 10 }, { reps: 10 }, { reps: 8 }],
-            comment: "Frenar la caída sin quebrar lumbar",
-          },
-          {
-            name: "Pallof",
-            sets: [
-              { reps: 8, repsPerSide: true },
-              { reps: 8, repsPerSide: true },
-              { reps: 8, repsPerSide: true },
-            ],
-            comment: null,
-          },
-        ],
-      },
-    ],
-  });
+    // ============================================
+    // SEMANA 4 (starts 2025-01-26)
+    // ============================================
 
-  // Día 2, Semana 4
-  await createWorkoutDay({
-    dayIndex: 2,
-    weekNumber: 4,
-    weekStartDate: new Date("2025-01-26"),
-    notes: "Entrada en calor: Movilidad A o B",
-    blocks: [
-      {
-        label: "A",
-        comment: null,
-        exercises: [
-          {
-            name: "Sentadilla con barra",
-            sets: [
-              { weightKg: 40, reps: 5 },
-              { weightKg: 50, reps: 4 },
-              { weightKg: 65, reps: 1 },
-              { weightKg: 65, reps: 1 },
-              { weightKg: 65, reps: 1 },
-            ],
-            comment:
-              "Kg sumando barra. Bajo en 2-3 seg, me quedo 1 seg y subo. NO HAGO REBOTE. APRETO GLÚTEO ARRIBA",
-            variants: ["tempo_3_1_0"],
-          },
-          {
-            name: "Press inclinado a un brazo",
-            sets: [
-              { weightKg: 10, reps: 6 },
-              { weightKg: 15, reps: 5 },
-              { weightKg: 20, reps: 4 },
-              { weightKg: 20, reps: 4 },
-              { weightKg: 20, reps: 4 },
-            ],
-            comment: "Acordate del leg drive (pies atrás de las rodillas)",
-          },
-        ],
-      },
-      {
-        label: "B",
-        comment:
-          "Bloque pliométrico: Descanso entre serie de 30 seg a 1 min según lo requiera (tenes que estar súper fresco en cada serie)",
-        exercises: [
-          {
-            name: "Salto vertical sin contramovimiento",
-            sets: [{ reps: 4 }, { reps: 4 }, { reps: 4 }],
-            comment: null,
-          },
-          {
-            name: "Desplazamiento lateral explosivo",
-            sets: [
-              { reps: 4, repsPerSide: true },
-              { reps: 4, repsPerSide: true },
-              { reps: 4, repsPerSide: true },
-            ],
-            comment: null,
-          },
-        ],
-      },
-      {
-        label: "C",
-        comment: null,
-        exercises: [
-          {
-            name: "Hip Thrust",
-            sets: [
-              { weightKg: 100, reps: 8 },
-              { weightKg: 100, reps: 6 },
-              { weightKg: 100, reps: 6 },
-            ],
-            comment: "Kg sumando barra",
-          },
-          {
-            name: "Remo a un brazo",
-            sets: [
-              { weightKg: 25, reps: 8, repsPerSide: true },
-              { weightKg: 25, reps: 6, repsPerSide: true },
-              { weightKg: 25, reps: 6, repsPerSide: true },
-            ],
-            comment: "Llevar la mancuerna hacia la cadera",
-          },
-          {
-            name: "Dead bug con disco brazos",
-            sets: [
-              { weightKg: 10, reps: 8 },
-              { weightKg: 10, reps: 8 },
-              { weightKg: 10, reps: 6 },
-            ],
-            comment:
-              "Con disco de 5kg en las tibias y otro sosteniendo con los brazos, alejo los discos extendiendo piernas y brazos. Columna NEUTRA (a penas retracción pélvica). Extiendo y vuelvo",
-          },
-        ],
-      },
-    ],
-  });
+    // Día 1, Semana 4
+    {
+      dayIndex: 1,
+      weekNumber: 4,
+      weekStartDate: new Date("2025-01-26"),
+      notes: "Entrada en calor: Movilidad A o B",
+      blocks: [
+        {
+          label: "A",
+          comment:
+            "Bloque pliométrico: Descanso entre serie de 30 seg a 1 min según lo requiera (tenes que estar súper fresco en cada serie)",
+          exercises: [
+            {
+              name: "Saltos al cajón 70cm",
+              sets: [{ reps: 3 }, { reps: 3 }, { reps: 3 }],
+              comment: null,
+            },
+            {
+              name: "Slam ball",
+              sets: [{ reps: 4 }, { reps: 4 }, { reps: 4 }],
+              comment: "Pelota de 5kg crossfit",
+            },
+          ],
+        },
+        {
+          label: "B",
+          comment: null,
+          exercises: [
+            {
+              name: "Peso muerto trap bar",
+              sets: [
+                { weightKg: 60, reps: 5 },
+                { weightKg: 85, reps: 4 },
+                { weightKg: 100, reps: 3 },
+                { weightKg: 100, reps: 2 },
+                { weightKg: 100, reps: 2 },
+              ],
+              comment:
+                "Activar dorsales y NO BALANCEAR LA TRAP, subo y bajo en bloque (no tengo que desarmarme)",
+            },
+            {
+              name: "Sentadilla bulgara",
+              sets: [
+                { weightKg: 15, reps: 6, repsPerSide: true },
+                { weightKg: 25, reps: 5, repsPerSide: true },
+                { weightKg: 35, reps: 6, repsPerSide: true },
+                { weightKg: 35, reps: 4, repsPerSide: true },
+                { weightKg: 35, reps: 4, repsPerSide: true },
+              ],
+              comment:
+                "Reps por lado y peso total (SI NO HAY MANCUERNAS HACELO CON BARRA)",
+            },
+          ],
+        },
+        {
+          label: "C",
+          comment: null,
+          exercises: [
+            {
+              name: "Curl nórdico sin materiales",
+              sets: [{ reps: 10 }, { reps: 10 }, { reps: 8 }],
+              comment: "Frenar la caída sin quebrar lumbar",
+            },
+            {
+              name: "Pallof",
+              sets: [
+                { reps: 8, repsPerSide: true },
+                { reps: 8, repsPerSide: true },
+                { reps: 8, repsPerSide: true },
+              ],
+              comment: null,
+            },
+          ],
+        },
+      ],
+    },
 
-  // Día 3, Semana 4
-  await createWorkoutDay({
-    dayIndex: 3,
-    weekNumber: 4,
-    weekStartDate: new Date("2025-01-26"),
-    notes: "Entrada en calor: Movilidad A o B",
-    blocks: [
-      {
-        label: "A",
-        comment: null,
-        exercises: [
-          {
-            name: "Cosaco squat",
-            sets: [
-              { weightKg: 15, reps: 8, repsPerSide: true },
-              { weightKg: 15, reps: 8, repsPerSide: true },
-              { weightKg: 15, reps: 6, repsPerSide: true },
-            ],
-            comment: "Uso una sola mancuerna",
-          },
-          {
-            name: "Dominada",
-            sets: [
-              { weightKg: 0, reps: 5 },
-              { weightKg: 5, reps: 4 },
-              { weightKg: 12.2, reps: 4 },
-              { weightKg: 12.2, reps: 4 },
-              { weightKg: 12.2, reps: 4 },
-            ],
-            comment: "Subir explosivo, bajar en 2 o 3 seg",
-          },
-        ],
-      },
-      {
-        label: "B",
-        comment: null,
-        exercises: [
-          {
-            name: "Peso muerto a 1 pierna c/ peso",
-            sets: [
-              { weightKg: 15, reps: 6, repsPerSide: true },
-              { weightKg: 15, reps: 6, repsPerSide: true },
-              { weightKg: 15, reps: 6, repsPerSide: true },
-            ],
-            comment: null,
-          },
-          {
-            name: "Press mancuerna banco plano",
-            sets: [
-              { weightKg: 17.5, reps: 4 },
-              { weightKg: 17.5, reps: 4 },
-              { weightKg: 17.5, reps: 4 },
-            ],
-            comment: null,
-          },
-        ],
-      },
-      {
-        label: "C",
-        comment: null,
-        exercises: [
-          {
-            name: "Hiperextensiones",
-            sets: [
-              { weightKg: 15, reps: 10 },
-              { weightKg: 15, reps: 8 },
-              { weightKg: 15, reps: 8 },
-            ],
-            comment: "Redondeando espalda",
-          },
-          {
-            name: "Revolver la olla c/ pelota",
-            sets: [
-              { durationSeconds: 40 },
-              { durationSeconds: 40 },
-              { durationSeconds: 40 },
-            ],
-            comment: null,
-          },
-        ],
-      },
-    ],
-  });
+    // Día 2, Semana 4
+    {
+      dayIndex: 2,
+      weekNumber: 4,
+      weekStartDate: new Date("2025-01-26"),
+      notes: "Entrada en calor: Movilidad A o B",
+      blocks: [
+        {
+          label: "A",
+          comment: null,
+          exercises: [
+            {
+              name: "Sentadilla con barra",
+              sets: [
+                { weightKg: 40, reps: 5 },
+                { weightKg: 50, reps: 4 },
+                { weightKg: 65, reps: 1 },
+                { weightKg: 65, reps: 1 },
+                { weightKg: 65, reps: 1 },
+              ],
+              comment:
+                "Kg sumando barra. Bajo en 2-3 seg, me quedo 1 seg y subo. NO HAGO REBOTE. APRETO GLÚTEO ARRIBA",
+              variants: ["tempo_3_1_0"],
+            },
+            {
+              name: "Press inclinado a un brazo",
+              sets: [
+                { weightKg: 10, reps: 6 },
+                { weightKg: 15, reps: 5 },
+                { weightKg: 20, reps: 4 },
+                { weightKg: 20, reps: 4 },
+                { weightKg: 20, reps: 4 },
+              ],
+              comment: "Acordate del leg drive (pies atrás de las rodillas)",
+            },
+          ],
+        },
+        {
+          label: "B",
+          comment:
+            "Bloque pliométrico: Descanso entre serie de 30 seg a 1 min según lo requiera (tenes que estar súper fresco en cada serie)",
+          exercises: [
+            {
+              name: "Salto vertical sin contramovimiento",
+              sets: [{ reps: 4 }, { reps: 4 }, { reps: 4 }],
+              comment: null,
+            },
+            {
+              name: "Desplazamiento lateral explosivo",
+              sets: [
+                { reps: 4, repsPerSide: true },
+                { reps: 4, repsPerSide: true },
+                { reps: 4, repsPerSide: true },
+              ],
+              comment: null,
+            },
+          ],
+        },
+        {
+          label: "C",
+          comment: null,
+          exercises: [
+            {
+              name: "Hip Thrust",
+              sets: [
+                { weightKg: 100, reps: 8 },
+                { weightKg: 100, reps: 6 },
+                { weightKg: 100, reps: 6 },
+              ],
+              comment: "Kg sumando barra",
+            },
+            {
+              name: "Remo a un brazo",
+              sets: [
+                { weightKg: 25, reps: 8, repsPerSide: true },
+                { weightKg: 25, reps: 6, repsPerSide: true },
+                { weightKg: 25, reps: 6, repsPerSide: true },
+              ],
+              comment: "Llevar la mancuerna hacia la cadera",
+            },
+            {
+              name: "Dead bug con disco brazos",
+              sets: [
+                { weightKg: 10, reps: 8 },
+                { weightKg: 10, reps: 8 },
+                { weightKg: 10, reps: 6 },
+              ],
+              comment:
+                "Con disco de 5kg en las tibias y otro sosteniendo con los brazos, alejo los discos extendiendo piernas y brazos. Columna NEUTRA (a penas retracción pélvica). Extiendo y vuelvo",
+            },
+          ],
+        },
+      ],
+    },
 
-  // ============================================
-  // SEMANA 5 (starts 2025-02-02)
-  // ============================================
+    // Día 3, Semana 4
+    {
+      dayIndex: 3,
+      weekNumber: 4,
+      weekStartDate: new Date("2025-01-26"),
+      notes: "Entrada en calor: Movilidad A o B",
+      blocks: [
+        {
+          label: "A",
+          comment: null,
+          exercises: [
+            {
+              name: "Cosaco squat",
+              sets: [
+                { weightKg: 15, reps: 8, repsPerSide: true },
+                { weightKg: 15, reps: 8, repsPerSide: true },
+                { weightKg: 15, reps: 6, repsPerSide: true },
+              ],
+              comment: "Uso una sola mancuerna",
+            },
+            {
+              name: "Dominada",
+              sets: [
+                { weightKg: 0, reps: 5 },
+                { weightKg: 5, reps: 4 },
+                { weightKg: 12.2, reps: 4 },
+                { weightKg: 12.2, reps: 4 },
+                { weightKg: 12.2, reps: 4 },
+              ],
+              comment: "Subir explosivo, bajar en 2 o 3 seg",
+            },
+          ],
+        },
+        {
+          label: "B",
+          comment: null,
+          exercises: [
+            {
+              name: "Peso muerto a 1 pierna c/ peso",
+              sets: [
+                { weightKg: 15, reps: 6, repsPerSide: true },
+                { weightKg: 15, reps: 6, repsPerSide: true },
+                { weightKg: 15, reps: 6, repsPerSide: true },
+              ],
+              comment: null,
+            },
+            {
+              name: "Press mancuerna banco plano",
+              sets: [
+                { weightKg: 17.5, reps: 4 },
+                { weightKg: 17.5, reps: 4 },
+                { weightKg: 17.5, reps: 4 },
+              ],
+              comment: null,
+            },
+          ],
+        },
+        {
+          label: "C",
+          comment: null,
+          exercises: [
+            {
+              name: "Hiperextensiones",
+              sets: [
+                { weightKg: 15, reps: 10 },
+                { weightKg: 15, reps: 8 },
+                { weightKg: 15, reps: 8 },
+              ],
+              comment: "Redondeando espalda",
+            },
+            {
+              name: "Revolver la olla c/ pelota",
+              sets: [
+                { durationSeconds: 40 },
+                { durationSeconds: 40 },
+                { durationSeconds: 40 },
+              ],
+              comment: null,
+            },
+          ],
+        },
+      ],
+    },
 
-  // Día 1, Semana 5
-  await createWorkoutDay({
-    dayIndex: 1,
-    weekNumber: 5,
-    weekStartDate: new Date("2025-02-02"),
-    notes: "Entrada en calor: Movilidad A o B",
-    blocks: [
-      {
-        label: "A",
-        comment:
-          "Bloque pliométrico: Descanso entre serie de 30 seg a 1 min según lo requiera (tenes que estar súper fresco en cada serie)",
-        exercises: [
-          {
-            name: "Saltos al cajón 70cm",
-            sets: [{ reps: 4 }, { reps: 4 }, { reps: 4 }],
-            comment: null,
-          },
-          {
-            name: "Slam ball",
-            sets: [{ reps: 5 }, { reps: 5 }, { reps: 5 }],
-            comment: "Pelota de 5kg crossfit",
-          },
-        ],
-      },
-      {
-        label: "B",
-        comment: null,
-        exercises: [
-          {
-            name: "Peso muerto trap bar",
-            sets: [
-              { weightKg: 60, reps: 5 },
-              { weightKg: 85, reps: 4 },
-              { weightKg: 100, reps: 3 },
-              { weightKg: 100, reps: 3 },
-              { weightKg: 100, reps: 2 },
-            ],
-            comment:
-              "Activar dorsales y NO BALANCEAR LA TRAP, subo y bajo en bloque (no tengo que desarmarme)",
-          },
-          {
-            name: "Sentadilla bulgara",
-            sets: [
-              { weightKg: 15, reps: 6, repsPerSide: true },
-              { weightKg: 25, reps: 5, repsPerSide: true },
-              { weightKg: 35, reps: 6, repsPerSide: true },
-              { weightKg: 35, reps: 6, repsPerSide: true },
-              { weightKg: 35, reps: 4, repsPerSide: true },
-            ],
-            comment:
-              "Reps por lado y peso total (SI NO HAY MANCUERNAS HACELO CON BARRA)",
-          },
-        ],
-      },
-      {
-        label: "C",
-        comment: null,
-        exercises: [
-          {
-            name: "Curl nórdico sin materiales",
-            sets: [{ reps: 10 }, { reps: 10 }, { reps: 10 }],
-            comment: "Frenar la caída sin quebrar lumbar",
-          },
-          {
-            name: "Pallof",
-            sets: [
-              { reps: 10, repsPerSide: true },
-              { reps: 8, repsPerSide: true },
-              { reps: 8, repsPerSide: true },
-            ],
-            comment: null,
-          },
-        ],
-      },
-    ],
-  });
+    // ============================================
+    // SEMANA 5 (starts 2025-02-02)
+    // ============================================
 
-  // Día 2, Semana 5
-  await createWorkoutDay({
-    dayIndex: 2,
-    weekNumber: 5,
-    weekStartDate: new Date("2025-02-02"),
-    notes: "Entrada en calor: Movilidad A o B",
-    blocks: [
-      {
-        label: "A",
-        comment: null,
-        exercises: [
-          {
-            name: "Sentadilla con barra",
-            sets: [
-              { weightKg: 40, reps: 5 },
-              { weightKg: 50, reps: 4 },
-              { weightKg: 65, reps: 2 },
-              { weightKg: 65, reps: 2 },
-              { weightKg: 65, reps: 2 },
-            ],
-            comment:
-              "Kg sumando barra. Bajo en 2-3 seg, me quedo 1 seg y subo. NO HAGO REBOTE. APRETO GLÚTEO ARRIBA",
-            variants: ["tempo_3_1_0"],
-          },
-          {
-            name: "Press inclinado a un brazo",
-            sets: [
-              { weightKg: 10, reps: 6 },
-              { weightKg: 15, reps: 5 },
-              { weightKg: 20, reps: 6 },
-              { weightKg: 20, reps: 4 },
-              { weightKg: 20, reps: 4 },
-            ],
-            comment: "Acordate del leg drive (pies atrás de las rodillas)",
-          },
-        ],
-      },
-      {
-        label: "B",
-        comment:
-          "Bloque pliométrico: Descanso entre serie de 30 seg a 1 min según lo requiera (tenes que estar súper fresco en cada serie)",
-        exercises: [
-          {
-            name: "Salto vertical sin contramovimiento",
-            sets: [{ reps: 4 }, { reps: 4 }, { reps: 4 }],
-            comment: null,
-          },
-          {
-            name: "Desplazamiento lateral explosivo",
-            sets: [
-              { reps: 4, repsPerSide: true },
-              { reps: 4, repsPerSide: true },
-              { reps: 4, repsPerSide: true },
-            ],
-            comment: null,
-          },
-        ],
-      },
-      {
-        label: "C",
-        comment: null,
-        exercises: [
-          {
-            name: "Hip Thrust",
-            sets: [
-              { weightKg: 100, reps: 8 },
-              { weightKg: 100, reps: 8 },
-              { weightKg: 100, reps: 6 },
-            ],
-            comment: "Kg sumando barra",
-          },
-          {
-            name: "Remo a un brazo",
-            sets: [
-              { weightKg: 25, reps: 8, repsPerSide: true },
-              { weightKg: 25, reps: 8, repsPerSide: true },
-              { weightKg: 25, reps: 6, repsPerSide: true },
-            ],
-            comment: "Llevar la mancuerna hacia la cadera",
-          },
-          {
-            name: "Dead bug con disco brazos",
-            sets: [
-              { weightKg: 10, reps: 8 },
-              { weightKg: 10, reps: 8 },
-              { weightKg: 10, reps: 8 },
-            ],
-            comment:
-              "Con disco de 5kg en las tibias y otro sosteniendo con los brazos, alejo los discos extendiendo piernas y brazos. Columna NEUTRA (a penas retracción pélvica). Extiendo y vuelvo",
-          },
-        ],
-      },
-    ],
-  });
+    // Día 1, Semana 5
+    {
+      dayIndex: 1,
+      weekNumber: 5,
+      weekStartDate: new Date("2025-02-02"),
+      notes: "Entrada en calor: Movilidad A o B",
+      blocks: [
+        {
+          label: "A",
+          comment:
+            "Bloque pliométrico: Descanso entre serie de 30 seg a 1 min según lo requiera (tenes que estar súper fresco en cada serie)",
+          exercises: [
+            {
+              name: "Saltos al cajón 70cm",
+              sets: [{ reps: 4 }, { reps: 4 }, { reps: 4 }],
+              comment: null,
+            },
+            {
+              name: "Slam ball",
+              sets: [{ reps: 5 }, { reps: 5 }, { reps: 5 }],
+              comment: "Pelota de 5kg crossfit",
+            },
+          ],
+        },
+        {
+          label: "B",
+          comment: null,
+          exercises: [
+            {
+              name: "Peso muerto trap bar",
+              sets: [
+                { weightKg: 60, reps: 5 },
+                { weightKg: 85, reps: 4 },
+                { weightKg: 100, reps: 3 },
+                { weightKg: 100, reps: 3 },
+                { weightKg: 100, reps: 2 },
+              ],
+              comment:
+                "Activar dorsales y NO BALANCEAR LA TRAP, subo y bajo en bloque (no tengo que desarmarme)",
+            },
+            {
+              name: "Sentadilla bulgara",
+              sets: [
+                { weightKg: 15, reps: 6, repsPerSide: true },
+                { weightKg: 25, reps: 5, repsPerSide: true },
+                { weightKg: 35, reps: 6, repsPerSide: true },
+                { weightKg: 35, reps: 6, repsPerSide: true },
+                { weightKg: 35, reps: 4, repsPerSide: true },
+              ],
+              comment:
+                "Reps por lado y peso total (SI NO HAY MANCUERNAS HACELO CON BARRA)",
+            },
+          ],
+        },
+        {
+          label: "C",
+          comment: null,
+          exercises: [
+            {
+              name: "Curl nórdico sin materiales",
+              sets: [{ reps: 10 }, { reps: 10 }, { reps: 10 }],
+              comment: "Frenar la caída sin quebrar lumbar",
+            },
+            {
+              name: "Pallof",
+              sets: [
+                { reps: 10, repsPerSide: true },
+                { reps: 8, repsPerSide: true },
+                { reps: 8, repsPerSide: true },
+              ],
+              comment: null,
+            },
+          ],
+        },
+      ],
+    },
 
-  // Día 3, Semana 5
-  await createWorkoutDay({
-    dayIndex: 3,
-    weekNumber: 5,
-    weekStartDate: new Date("2025-02-02"),
-    notes: "Entrada en calor: Movilidad A o B",
-    blocks: [
-      {
-        label: "A",
-        comment: null,
-        exercises: [
-          {
-            name: "Cosaco squat",
-            sets: [
-              { weightKg: 15, reps: 8, repsPerSide: true },
-              { weightKg: 15, reps: 8, repsPerSide: true },
-              { weightKg: 15, reps: 8, repsPerSide: true },
-            ],
-            comment: "Uso una sola mancuerna",
-          },
-          {
-            name: "Dominada",
-            sets: [
-              { weightKg: 0, reps: 5 },
-              { weightKg: 5, reps: 4 },
-              { weightKg: 12.2, reps: 5 },
-              { weightKg: 12.2, reps: 4 },
-              { weightKg: 12.2, reps: 4 },
-            ],
-            comment: "Subir explosivo, bajar en 2 o 3 seg",
-          },
-        ],
-      },
-      {
-        label: "B",
-        comment: null,
-        exercises: [
-          {
-            name: "Peso muerto a 1 pierna c/ peso",
-            sets: [
-              { weightKg: 15, reps: 8, repsPerSide: true },
-              { weightKg: 15, reps: 6, repsPerSide: true },
-              { weightKg: 15, reps: 6, repsPerSide: true },
-            ],
-            comment: null,
-          },
-          {
-            name: "Press mancuerna banco plano",
-            sets: [
-              { weightKg: 17.5, reps: 6 },
-              { weightKg: 17.5, reps: 4 },
-              { weightKg: 17.5, reps: 4 },
-            ],
-            comment: null,
-          },
-        ],
-      },
-      {
-        label: "C",
-        comment: null,
-        exercises: [
-          {
-            name: "Hiperextensiones",
-            sets: [
-              { weightKg: 15, reps: 10 },
-              { weightKg: 15, reps: 10 },
-              { weightKg: 15, reps: 8 },
-            ],
-            comment: "Redondeando espalda",
-          },
-          {
-            name: "Revolver la olla c/ pelota",
-            sets: [
-              { durationSeconds: 50 },
-              { durationSeconds: 50 },
-              { durationSeconds: 50 },
-            ],
-            comment: null,
-          },
-        ],
-      },
-    ],
-  });
+    // Día 2, Semana 5
+    {
+      dayIndex: 2,
+      weekNumber: 5,
+      weekStartDate: new Date("2025-02-02"),
+      notes: "Entrada en calor: Movilidad A o B",
+      blocks: [
+        {
+          label: "A",
+          comment: null,
+          exercises: [
+            {
+              name: "Sentadilla con barra",
+              sets: [
+                { weightKg: 40, reps: 5 },
+                { weightKg: 50, reps: 4 },
+                { weightKg: 65, reps: 2 },
+                { weightKg: 65, reps: 2 },
+                { weightKg: 65, reps: 2 },
+              ],
+              comment:
+                "Kg sumando barra. Bajo en 2-3 seg, me quedo 1 seg y subo. NO HAGO REBOTE. APRETO GLÚTEO ARRIBA",
+              variants: ["tempo_3_1_0"],
+            },
+            {
+              name: "Press inclinado a un brazo",
+              sets: [
+                { weightKg: 10, reps: 6 },
+                { weightKg: 15, reps: 5 },
+                { weightKg: 20, reps: 6 },
+                { weightKg: 20, reps: 4 },
+                { weightKg: 20, reps: 4 },
+              ],
+              comment: "Acordate del leg drive (pies atrás de las rodillas)",
+            },
+          ],
+        },
+        {
+          label: "B",
+          comment:
+            "Bloque pliométrico: Descanso entre serie de 30 seg a 1 min según lo requiera (tenes que estar súper fresco en cada serie)",
+          exercises: [
+            {
+              name: "Salto vertical sin contramovimiento",
+              sets: [{ reps: 4 }, { reps: 4 }, { reps: 4 }],
+              comment: null,
+            },
+            {
+              name: "Desplazamiento lateral explosivo",
+              sets: [
+                { reps: 4, repsPerSide: true },
+                { reps: 4, repsPerSide: true },
+                { reps: 4, repsPerSide: true },
+              ],
+              comment: null,
+            },
+          ],
+        },
+        {
+          label: "C",
+          comment: null,
+          exercises: [
+            {
+              name: "Hip Thrust",
+              sets: [
+                { weightKg: 100, reps: 8 },
+                { weightKg: 100, reps: 8 },
+                { weightKg: 100, reps: 6 },
+              ],
+              comment: "Kg sumando barra",
+            },
+            {
+              name: "Remo a un brazo",
+              sets: [
+                { weightKg: 25, reps: 8, repsPerSide: true },
+                { weightKg: 25, reps: 8, repsPerSide: true },
+                { weightKg: 25, reps: 6, repsPerSide: true },
+              ],
+              comment: "Llevar la mancuerna hacia la cadera",
+            },
+            {
+              name: "Dead bug con disco brazos",
+              sets: [
+                { weightKg: 10, reps: 8 },
+                { weightKg: 10, reps: 8 },
+                { weightKg: 10, reps: 8 },
+              ],
+              comment:
+                "Con disco de 5kg en las tibias y otro sosteniendo con los brazos, alejo los discos extendiendo piernas y brazos. Columna NEUTRA (a penas retracción pélvica). Extiendo y vuelvo",
+            },
+          ],
+        },
+      ],
+    },
+
+    // Día 3, Semana 5
+    {
+      dayIndex: 3,
+      weekNumber: 5,
+      weekStartDate: new Date("2025-02-02"),
+      notes: "Entrada en calor: Movilidad A o B",
+      blocks: [
+        {
+          label: "A",
+          comment: null,
+          exercises: [
+            {
+              name: "Cosaco squat",
+              sets: [
+                { weightKg: 15, reps: 8, repsPerSide: true },
+                { weightKg: 15, reps: 8, repsPerSide: true },
+                { weightKg: 15, reps: 8, repsPerSide: true },
+              ],
+              comment: "Uso una sola mancuerna",
+            },
+            {
+              name: "Dominada",
+              sets: [
+                { weightKg: 0, reps: 5 },
+                { weightKg: 5, reps: 4 },
+                { weightKg: 12.2, reps: 5 },
+                { weightKg: 12.2, reps: 4 },
+                { weightKg: 12.2, reps: 4 },
+              ],
+              comment: "Subir explosivo, bajar en 2 o 3 seg",
+            },
+          ],
+        },
+        {
+          label: "B",
+          comment: null,
+          exercises: [
+            {
+              name: "Peso muerto a 1 pierna c/ peso",
+              sets: [
+                { weightKg: 15, reps: 8, repsPerSide: true },
+                { weightKg: 15, reps: 6, repsPerSide: true },
+                { weightKg: 15, reps: 6, repsPerSide: true },
+              ],
+              comment: null,
+            },
+            {
+              name: "Press mancuerna banco plano",
+              sets: [
+                { weightKg: 17.5, reps: 6 },
+                { weightKg: 17.5, reps: 4 },
+                { weightKg: 17.5, reps: 4 },
+              ],
+              comment: null,
+            },
+          ],
+        },
+        {
+          label: "C",
+          comment: null,
+          exercises: [
+            {
+              name: "Hiperextensiones",
+              sets: [
+                { weightKg: 15, reps: 10 },
+                { weightKg: 15, reps: 10 },
+                { weightKg: 15, reps: 8 },
+              ],
+              comment: "Redondeando espalda",
+            },
+            {
+              name: "Revolver la olla c/ pelota",
+              sets: [
+                { durationSeconds: 50 },
+                { durationSeconds: 50 },
+                { durationSeconds: 50 },
+              ],
+              comment: null,
+            },
+          ],
+        },
+      ],
+    },
+  ];
+
+  // Create workout days for all athletes
+  for (const athlete of athletes) {
+    for (const workoutDayData of workoutDays) {
+      await createWorkoutDay(workoutDayData, athlete.id, trainer.id);
+    }
+    console.log(`✅ Created workouts for ${athlete.name}`);
+  }
 
   console.log("✅ Seeding completed!");
 }

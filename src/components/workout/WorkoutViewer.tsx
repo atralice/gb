@@ -19,6 +19,8 @@ type WorkoutViewerProps = {
   availableDays: AvailableWorkoutDay[];
   initialBlockIndex: number;
   suggestedDay: number;
+  userName?: string | null;
+  userEmail: string;
 };
 
 export default function WorkoutViewer({
@@ -26,6 +28,8 @@ export default function WorkoutViewer({
   availableDays,
   initialBlockIndex,
   suggestedDay,
+  userName,
+  userEmail,
 }: WorkoutViewerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -140,6 +144,8 @@ export default function WorkoutViewer({
         onBlockSelect={handleBlockSelect}
         onHeaderTap={() => setDayPickerOpen(true)}
         isDayCompleted={isDayCompleted}
+        userName={userName}
+        userEmail={userEmail}
       />
 
       <div

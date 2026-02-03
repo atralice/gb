@@ -3,6 +3,8 @@
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import getUser from "@/lib/auth/getUser";
+import { AuthorizationError } from "@/types/errors";
 
 const LogSetSchema = z.object({
   setId: z.string().uuid(),
@@ -16,6 +18,12 @@ const LogSetSchema = z.object({
 export async function logSet(input: z.infer<typeof LogSetSchema>) {
   const validated = LogSetSchema.parse(input);
 
+  // Get current user and verify authorization
+  const user = await getUser();
+  if (!user) {
+    throw new AuthorizationError("Must be authenticated");
+  }
+
   // Check if custom values were provided
   const hasCustomValues =
     validated.actualReps !== undefined ||
@@ -26,7 +34,25 @@ export async function logSet(input: z.infer<typeof LogSetSchema>) {
     // Custom values provided - update with those values
     const set = await prisma.set.findUniqueOrThrow({
       where: { id: validated.setId },
+      include: {
+        workoutBlockExercise: {
+          include: {
+            workoutBlock: {
+              include: {
+                workoutDay: { select: { athleteId: true } },
+              },
+            },
+          },
+        },
+      },
     });
+
+    // Verify ownership
+    if (
+      set.workoutBlockExercise.workoutBlock.workoutDay.athleteId !== user.id
+    ) {
+      throw new AuthorizationError("Cannot modify sets for other athletes");
+    }
 
     const actualReps =
       validated.actualReps !== undefined ? validated.actualReps : set.reps;
@@ -54,7 +80,25 @@ export async function logSet(input: z.infer<typeof LogSetSchema>) {
     // No custom values - only toggle completion
     const set = await prisma.set.findUniqueOrThrow({
       where: { id: validated.setId },
+      include: {
+        workoutBlockExercise: {
+          include: {
+            workoutBlock: {
+              include: {
+                workoutDay: { select: { athleteId: true } },
+              },
+            },
+          },
+        },
+      },
     });
+
+    // Verify ownership
+    if (
+      set.workoutBlockExercise.workoutBlock.workoutDay.athleteId !== user.id
+    ) {
+      throw new AuthorizationError("Cannot modify sets for other athletes");
+    }
 
     // If completing and no actual values set yet, copy from prescription
     const needsDefaults =
@@ -87,10 +131,36 @@ const LogSetsSchema = z.object({
 export async function logSets(input: z.infer<typeof LogSetsSchema>) {
   const validated = LogSetsSchema.parse(input);
 
-  // Get all sets
+  // Get current user and verify authorization
+  const user = await getUser();
+  if (!user) {
+    throw new AuthorizationError("Must be authenticated");
+  }
+
+  // Get all sets with ownership info
   const sets = await prisma.set.findMany({
     where: { id: { in: validated.setIds } },
+    include: {
+      workoutBlockExercise: {
+        include: {
+          workoutBlock: {
+            include: {
+              workoutDay: { select: { athleteId: true } },
+            },
+          },
+        },
+      },
+    },
   });
+
+  // Verify all sets belong to the current user
+  for (const set of sets) {
+    if (
+      set.workoutBlockExercise.workoutBlock.workoutDay.athleteId !== user.id
+    ) {
+      throw new AuthorizationError("Cannot modify sets for other athletes");
+    }
+  }
 
   await Promise.all(
     sets.map((set) => {
@@ -126,6 +196,32 @@ const SkipSetSchema = z.object({
 export async function skipSet(input: z.infer<typeof SkipSetSchema>) {
   const validated = SkipSetSchema.parse(input);
 
+  // Get current user and verify authorization
+  const user = await getUser();
+  if (!user) {
+    throw new AuthorizationError("Must be authenticated");
+  }
+
+  // Verify ownership before updating
+  const set = await prisma.set.findUniqueOrThrow({
+    where: { id: validated.setId },
+    include: {
+      workoutBlockExercise: {
+        include: {
+          workoutBlock: {
+            include: {
+              workoutDay: { select: { athleteId: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (set.workoutBlockExercise.workoutBlock.workoutDay.athleteId !== user.id) {
+    throw new AuthorizationError("Cannot modify sets for other athletes");
+  }
+
   await prisma.set.update({
     where: { id: validated.setId },
     data: {
@@ -146,6 +242,36 @@ const SkipSetsSchema = z.object({
 
 export async function skipSets(input: z.infer<typeof SkipSetsSchema>) {
   const validated = SkipSetsSchema.parse(input);
+
+  // Get current user and verify authorization
+  const user = await getUser();
+  if (!user) {
+    throw new AuthorizationError("Must be authenticated");
+  }
+
+  // Verify all sets belong to the current user before updating
+  const sets = await prisma.set.findMany({
+    where: { id: { in: validated.setIds } },
+    include: {
+      workoutBlockExercise: {
+        include: {
+          workoutBlock: {
+            include: {
+              workoutDay: { select: { athleteId: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  for (const set of sets) {
+    if (
+      set.workoutBlockExercise.workoutBlock.workoutDay.athleteId !== user.id
+    ) {
+      throw new AuthorizationError("Cannot modify sets for other athletes");
+    }
+  }
 
   await prisma.set.updateMany({
     where: { id: { in: validated.setIds } },

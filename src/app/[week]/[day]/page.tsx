@@ -1,9 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getWorkoutDay } from "@/lib/workouts/getWorkoutDay";
 import { getAvailableWorkoutDays } from "@/lib/workouts/getAvailableWorkoutDays";
 import { getSuggestedWorkoutDay } from "@/lib/workouts/getSuggestedWorkoutDay";
 import WorkoutViewer from "@/components/workout/WorkoutViewer";
-import prisma from "@/lib/prisma";
+import getUser from "@/lib/auth/getUser";
 
 type WorkoutPageProps = {
   params: Promise<{ week: string; day: string }>;
@@ -14,6 +14,9 @@ export default async function WorkoutPage({
   params,
   searchParams,
 }: WorkoutPageProps) {
+  // Start user fetch early
+  const userPromise = getUser();
+
   // Parallel await for params and searchParams
   const [{ week, day }, { block }] = await Promise.all([params, searchParams]);
 
@@ -25,25 +28,18 @@ export default async function WorkoutPage({
     notFound();
   }
 
-  // TODO: Replace with actual auth
-  // Start athlete fetch early, await later
-  const athletePromise = prisma.user.findFirst({
-    where: { role: "athlete" },
-  });
+  const user = await userPromise;
 
-  // Start available days fetch in parallel (doesn't need athlete)
-  const availableDaysPromise = getAvailableWorkoutDays();
-
-  const athlete = await athletePromise;
-  if (!athlete) {
-    notFound();
+  // This shouldn't happen due to middleware, but handle defensively
+  if (!user) {
+    redirect("/login");
   }
 
-  // Now fetch athlete-dependent data in parallel
+  // Fetch data in parallel
   const [workoutDay, availableDays, suggested] = await Promise.all([
-    getWorkoutDay(athlete.id, weekNumber, dayIndex),
-    availableDaysPromise,
-    getSuggestedWorkoutDay(athlete.id),
+    getWorkoutDay(user.id, weekNumber, dayIndex),
+    getAvailableWorkoutDays(user.id),
+    getSuggestedWorkoutDay(user.id),
   ]);
 
   if (!workoutDay) {
@@ -56,6 +52,8 @@ export default async function WorkoutPage({
       availableDays={availableDays}
       initialBlockIndex={blockIndex}
       suggestedDay={suggested?.dayIndex ?? 1}
+      userName={user.name}
+      userEmail={user.email}
     />
   );
 }

@@ -10,6 +10,7 @@ function buildAttributes(): User {
     email: `test-${randomUUID()}@example.com`,
     name: "Test User",
     role: UserRole.athlete,
+    passwordHash: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

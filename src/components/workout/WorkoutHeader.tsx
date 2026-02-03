@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/cn";
 import CheckmarkBadge from "@/components/ui/CheckmarkBadge";
+import UserMenu from "@/components/ui/UserMenu";
 
 type BlockStatus = "incomplete" | "completed" | "skipped" | "mixed";
 
@@ -23,6 +24,8 @@ type WorkoutHeaderProps = {
   onBlockSelect: (index: number) => void;
   onHeaderTap: () => void;
   isDayCompleted?: boolean;
+  userName?: string | null;
+  userEmail: string;
 };
 
 export default function WorkoutHeader({
@@ -34,6 +37,8 @@ export default function WorkoutHeader({
   onBlockSelect,
   onHeaderTap,
   isDayCompleted = false,
+  userName,
+  userEmail,
 }: WorkoutHeaderProps) {
   const formattedDate = format(weekStartDate, "d MMM", { locale: es });
 
@@ -71,6 +76,7 @@ export default function WorkoutHeader({
             />
           </svg>
         </button>
+        <UserMenu userName={userName} userEmail={userEmail} />
       </div>
 
       {/* Block segmented control */}
