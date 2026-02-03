@@ -38,8 +38,8 @@ export default function WorkoutHeader({
   const formattedDate = format(weekStartDate, "d MMM", { locale: es });
 
   return (
-    <header className="sticky top-0 z-10 border-b border-slate-100 bg-white px-4 pb-4 pt-12">
-      <div className="mb-4 flex items-center justify-between">
+    <header className="sticky top-0 z-10 bg-white px-4 pb-3 pt-12">
+      <div className="mb-2 flex items-center justify-between">
         <button onClick={onHeaderTap} className="group flex items-center gap-2">
           <div>
             <div className="flex items-center gap-2">
@@ -73,86 +73,98 @@ export default function WorkoutHeader({
         </button>
       </div>
 
-      {/* Block pills */}
-      <div className="flex gap-3 pt-1">
-        {blocks.map((block, index) => {
-          const isActive = activeBlockIndex === index;
-          const hasStatus = block.status !== "incomplete";
+      {/* Block segmented control */}
+      <div className="rounded-xl bg-slate-100 p-1">
+        <div className="relative flex">
+          {/* Sliding background indicator */}
+          <div
+            className="absolute inset-y-1 rounded-lg bg-white shadow-sm transition-all duration-200 ease-out"
+            style={{
+              width: `${100 / blocks.length}%`,
+              left: `${(activeBlockIndex * 100) / blocks.length}%`,
+            }}
+          />
 
-          return (
-            <button
-              key={block.id}
-              onClick={() => onBlockSelect(index)}
-              className={cn(
-                "relative flex-1 rounded-full py-1.5 text-sm font-medium transition-all",
-                isActive
-                  ? "bg-slate-800 text-white"
-                  : block.status === "completed"
-                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                    : block.status === "skipped" || block.status === "mixed"
-                      ? "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              )}
-            >
-              {block.label || `Bloque ${index + 1}`}
-              {hasStatus && (
-                <span
-                  className={cn(
-                    "absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full",
-                    block.status === "completed"
-                      ? "bg-emerald-600"
-                      : "bg-slate-400"
-                  )}
-                >
-                  {block.status === "completed" ? (
-                    <svg
-                      className="h-2.5 w-2.5 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={3}
+          {blocks.map((block, index) => {
+            const isActive = activeBlockIndex === index;
+            const hasStatus = block.status !== "incomplete";
+
+            return (
+              <button
+                key={block.id}
+                onClick={() => onBlockSelect(index)}
+                className={cn(
+                  "relative z-10 flex-1 rounded-lg py-2 text-sm font-medium transition-colors",
+                  isActive
+                    ? "text-slate-900"
+                    : block.status === "completed"
+                      ? "text-emerald-600"
+                      : block.status === "skipped" || block.status === "mixed"
+                        ? "text-slate-400"
+                        : "text-slate-500"
+                )}
+              >
+                <span className="flex items-center justify-center gap-1.5">
+                  {block.label || String.fromCharCode(65 + index)}
+                  {hasStatus && (
+                    <span
+                      className={cn(
+                        "flex h-4 w-4 items-center justify-center rounded-full",
+                        block.status === "completed"
+                          ? "bg-emerald-500"
+                          : "bg-slate-400"
+                      )}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  ) : block.status === "skipped" ? (
-                    <svg
-                      className="h-2.5 w-2.5 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={3}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M13 5l7 7-7 7M5 5l7 7-7 7"
-                      />
-                    </svg>
-                  ) : (
-                    // mixed
-                    <svg
-                      className="h-2.5 w-2.5 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={3}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 12h14"
-                      />
-                    </svg>
+                      {block.status === "completed" ? (
+                        <svg
+                          className="h-2.5 w-2.5 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      ) : block.status === "skipped" ? (
+                        <svg
+                          className="h-2.5 w-2.5 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                          />
+                        </svg>
+                      ) : (
+                        <svg
+                          className="h-2.5 w-2.5 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5 12h14"
+                          />
+                        </svg>
+                      )}
+                    </span>
                   )}
                 </span>
-              )}
-            </button>
-          );
-        })}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </header>
   );

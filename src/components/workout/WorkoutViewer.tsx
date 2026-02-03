@@ -7,7 +7,7 @@ import BlockContent from "./BlockContent";
 import DayPickerDrawer from "./DayPickerDrawer";
 import ExerciseDetailDrawer from "./ExerciseDetailDrawer";
 import SetEditDrawer from "./SetEditDrawer";
-import { logSet, logSets } from "@/lib/workouts/actions/logSet";
+import { completeSetWithValues } from "@/lib/workouts/useSetActions";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
 import type { AvailableWorkoutDay } from "@/lib/workouts/getAvailableWorkoutDays";
 
@@ -176,31 +176,12 @@ export default function WorkoutViewer({
       <SetEditDrawer
         set={selectedSet?.set ?? null}
         exerciseName={selectedSet?.exerciseName ?? ""}
+        totalSets={selectedSet?.allSets.length ?? 0}
         open={!!selectedSet}
         onOpenChange={(open) => !open && setSelectedSet(null)}
         onSave={async (setId, values) => {
           if (!selectedSet) return;
-
-          // Find the index of this set
-          const setIndex = selectedSet.allSets.findIndex((s) => s.id === setId);
-          const previousSetIds = selectedSet.allSets
-            .slice(0, setIndex)
-            .filter((s) => !s.completed)
-            .map((s) => s.id);
-
-          // Complete this set with custom values, and previous sets with defaults
-          await Promise.all([
-            logSet({
-              setId,
-              completed: true,
-              actualReps: values.reps ?? null,
-              actualWeightKg: values.weightKg ?? null,
-              actualDurationSeconds: values.durationSeconds ?? null,
-            }),
-            previousSetIds.length > 0
-              ? logSets({ setIds: previousSetIds, completed: true })
-              : Promise.resolve(),
-          ]);
+          await completeSetWithValues(selectedSet.allSets, setId, values);
           router.refresh();
         }}
       />

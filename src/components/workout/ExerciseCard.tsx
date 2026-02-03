@@ -1,19 +1,13 @@
 "use client";
 
-import { useState, useTransition, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/cn";
 import SetPill from "./SetPill";
 import Spinner from "@/components/ui/Spinner";
 import { calculateVolumes, getSetColorClasses } from "@/lib/workouts/setColors";
-import {
-  logSet,
-  logSets,
-  skipSet,
-  skipSets,
-} from "@/lib/workouts/actions/logSet";
+import { useSetActions } from "@/lib/workouts/useSetActions";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
 
-const DOUBLE_TAP_DELAY = 250;
 const LONG_PRESS_THRESHOLD = 500;
 
 type Block = NonNullable<WorkoutDayWithBlocks>["blocks"][number];
@@ -39,9 +33,7 @@ export default function ExerciseCard({
   onExerciseTap,
   onSetDoubleTap,
 }: ExerciseCardProps) {
-  const [isPending, startTransition] = useTransition();
-
-  // Initialize from server state
+  // Initialize optimistic state from server state
   const initialCompleted = new Set(
     sets.filter((s) => s.completed).map((s) => s.id)
   );
@@ -52,6 +44,20 @@ export default function ExerciseCard({
     useState<Set<string>>(initialCompleted);
   const [skippedSets, setSkippedSets] = useState<Set<string>>(initialSkipped);
 
+  // Use centralized set actions
+  const {
+    isPending,
+    startTransition,
+    completeSet,
+    uncompleteSet,
+    toggleSkipSet,
+    completeSetAndPrevious,
+    completeAllSets,
+    resetAllSets,
+    skipAllSets,
+    unskipAllSets,
+  } = useSetActions(sets);
+
   const { volumes, minVolume, maxVolume } = calculateVolumes(sets);
 
   // Computed states
@@ -60,15 +66,14 @@ export default function ExerciseCard({
   const allDone =
     sets.length > 0 &&
     sets.every((s) => completedSets.has(s.id) || skippedSets.has(s.id));
-  // Mixed done: all sets are done (completed or skipped) but not all the same
   const mixedDone = allDone && !allCompleted && !allSkipped;
 
   const handleSetTap = (tappedSet: SetWithLog, index: number) => {
     const isCompleted = completedSets.has(tappedSet.id);
     const isSkipped = skippedSets.has(tappedSet.id);
 
-    // If skipped, tapping should unskip and complete
     if (isSkipped) {
+      // Unskip and complete
       setSkippedSets((prev) => {
         const next = new Set(prev);
         next.delete(tappedSet.id);
@@ -80,7 +85,7 @@ export default function ExerciseCard({
         return next;
       });
       startTransition(() => {
-        void logSet({ setId: tappedSet.id, completed: true });
+        void completeSet(tappedSet.id);
       });
       return;
     }
@@ -93,13 +98,13 @@ export default function ExerciseCard({
         return next;
       });
       startTransition(() => {
-        void logSet({ setId: tappedSet.id, completed: false });
+        void uncompleteSet(tappedSet.id);
       });
     } else {
-      // Complete this set and all previous non-skipped sets
+      // Complete this set and all previous non-skipped sets (optimistic update)
       const setsToComplete = sets
         .slice(0, index + 1)
-        .filter((s) => !skippedSets.has(s.id));
+        .filter((s) => !skippedSets.has(s.id) && !completedSets.has(s.id));
       const setIdsToComplete = setsToComplete.map((s) => s.id);
 
       setCompletedSets((prev) => {
@@ -108,9 +113,7 @@ export default function ExerciseCard({
         return next;
       });
 
-      startTransition(() => {
-        void logSets({ setIds: setIdsToComplete, completed: true });
-      });
+      completeSetAndPrevious(index, skippedSets, completedSets);
     }
   };
 
@@ -118,17 +121,12 @@ export default function ExerciseCard({
     const isSkipped = skippedSets.has(tappedSet.id);
 
     if (isSkipped) {
-      // Un-skip
       setSkippedSets((prev) => {
         const next = new Set(prev);
         next.delete(tappedSet.id);
         return next;
       });
-      startTransition(() => {
-        void skipSet({ setId: tappedSet.id, skipped: false });
-      });
     } else {
-      // Skip (also uncomplete)
       setSkippedSets((prev) => {
         const next = new Set(prev);
         next.add(tappedSet.id);
@@ -139,77 +137,32 @@ export default function ExerciseCard({
         next.delete(tappedSet.id);
         return next;
       });
-      startTransition(() => {
-        void skipSet({ setId: tappedSet.id, skipped: true });
-      });
     }
+    toggleSkipSet(tappedSet.id, isSkipped);
   };
 
   const handleToggleAll = useCallback(() => {
-    const allSetIds = sets.map((s) => s.id);
-
     if (allDone) {
-      // Reset all sets (uncomplete and unskip)
       setCompletedSets(new Set());
       setSkippedSets(new Set());
-      startTransition(() => {
-        void Promise.all([
-          logSets({ setIds: allSetIds, completed: false }),
-          skipSets({ setIds: allSetIds, skipped: false }),
-        ]);
-      });
+      resetAllSets();
     } else {
-      // Complete all sets (and unskip any skipped)
-      setCompletedSets(new Set(allSetIds));
+      setCompletedSets(new Set(sets.map((s) => s.id)));
       setSkippedSets(new Set());
-      startTransition(() => {
-        void logSets({ setIds: allSetIds, completed: true });
-      });
+      completeAllSets();
     }
-  }, [sets, allDone]);
+  }, [sets, allDone, resetAllSets, completeAllSets]);
 
   const handleSkipAll = useCallback(() => {
-    const allSetIds = sets.map((s) => s.id);
-
     if (allSkipped) {
-      // Un-skip all sets
       setSkippedSets(new Set());
-      startTransition(() => {
-        void skipSets({ setIds: allSetIds, skipped: false });
-      });
+      unskipAllSets();
     } else {
-      // Skip all sets (and uncomplete any completed)
-      setSkippedSets(new Set(allSetIds));
+      setSkippedSets(new Set(sets.map((s) => s.id)));
       setCompletedSets(new Set());
-      startTransition(() => {
-        void skipSets({ setIds: allSetIds, skipped: true });
-      });
+      skipAllSets();
     }
-  }, [sets, allSkipped]);
-
-  // Double-tap handling for the card
-  const cardTapCountRef = useRef(0);
-  const cardTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleCardClick = useCallback(
-    (e: React.MouseEvent) => {
-      cardTapCountRef.current += 1;
-
-      if (cardTapCountRef.current === 1) {
-        cardTapTimeoutRef.current = setTimeout(() => {
-          cardTapCountRef.current = 0;
-        }, DOUBLE_TAP_DELAY);
-      } else if (cardTapCountRef.current === 2) {
-        e.preventDefault();
-        if (cardTapTimeoutRef.current) {
-          clearTimeout(cardTapTimeoutRef.current);
-        }
-        cardTapCountRef.current = 0;
-        handleToggleAll();
-      }
-    },
-    [handleToggleAll]
-  );
+  }, [sets, allSkipped, unskipAllSets, skipAllSets]);
 
   // Long press handling for the checkbox button
   const btnLongPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -259,9 +212,8 @@ export default function ExerciseCard({
 
   return (
     <div
-      onClick={handleCardClick}
       className={cn(
-        "cursor-pointer rounded-2xl border bg-white p-4 shadow-sm transition-all duration-300",
+        "rounded-2xl border bg-white p-4 shadow-sm transition-all duration-300",
         allCompleted
           ? "border-emerald-300 bg-emerald-50/30"
           : allSkipped

@@ -39,6 +39,7 @@ export default function SetPill({
     null
   );
   const isLongPressRef = useRef(false);
+  const didMoveRef = useRef(false);
   const touchStartPos = useRef<{ x: number; y: number } | null>(null);
 
   const clearTimers = useCallback(() => {
@@ -60,6 +61,7 @@ export default function SetPill({
         touchStartPos.current = { x: touch.clientX, y: touch.clientY };
       }
       isLongPressRef.current = false;
+      didMoveRef.current = false;
 
       // Start long press timer
       longPressTimeoutRef.current = setTimeout(() => {
@@ -74,12 +76,13 @@ export default function SetPill({
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
-      // Cancel long press if finger moves too much
+      // Cancel long press and mark as scroll if finger moves too much
       const touch = e.touches[0];
       if (touch && touchStartPos.current) {
         const dx = Math.abs(touch.clientX - touchStartPos.current.x);
         const dy = Math.abs(touch.clientY - touchStartPos.current.y);
         if (dx > 10 || dy > 10) {
+          didMoveRef.current = true;
           clearTimers();
         }
       }
@@ -98,9 +101,11 @@ export default function SetPill({
         longPressTimeoutRef.current = null;
       }
 
-      // If it was a long press, don't handle tap
-      if (isLongPressRef.current) {
+      // If it was a long press or finger moved (scrolling), don't handle tap
+      if (isLongPressRef.current || didMoveRef.current) {
         isLongPressRef.current = false;
+        didMoveRef.current = false;
+        tapCountRef.current = 0;
         return;
       }
 

@@ -21,6 +21,7 @@ type SetForEdit = Pick<
 type SetEditDrawerProps = {
   set: SetForEdit | null;
   exerciseName: string;
+  totalSets: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (
@@ -32,11 +33,13 @@ type SetEditDrawerProps = {
 function SetEditForm({
   set,
   exerciseName,
+  totalSets,
   onOpenChange,
   onSave,
 }: {
   set: SetForEdit;
   exerciseName: string;
+  totalSets: number;
   onOpenChange: (open: boolean) => void;
   onSave: SetEditDrawerProps["onSave"];
 }) {
@@ -52,6 +55,20 @@ function SetEditForm({
 
   const isTimeBased = set.durationSeconds != null && set.durationSeconds > 0;
   const hasWeight = set.weightKg != null && set.weightKg > 0;
+
+  // Format prescription text
+  const getPrescriptionText = () => {
+    const parts: string[] = [];
+    if (isTimeBased) {
+      parts.push(`${set.durationSeconds}s`);
+    } else {
+      parts.push(`${set.reps} reps${set.repsPerSide ? " c/lado" : ""}`);
+    }
+    if (hasWeight) {
+      parts.push(`@ ${set.weightKg}kg`);
+    }
+    return parts.join(" ");
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -78,8 +95,18 @@ function SetEditForm({
   return (
     <>
       <DrawerTitle>
-        {exerciseName} - Serie {set.setIndex}
+        {exerciseName} - Serie {set.setIndex} de {totalSets}
       </DrawerTitle>
+
+      {/* Prescription display */}
+      <div className="mb-4 rounded-lg bg-slate-50 px-4 py-3 text-center">
+        <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+          Prescrito
+        </span>
+        <p className="mt-0.5 text-lg font-semibold text-slate-700">
+          {getPrescriptionText()}
+        </p>
+      </div>
 
       <div className="space-y-6">
         {/* Reps or Duration */}
@@ -233,6 +260,7 @@ function SetEditForm({
 export default function SetEditDrawer({
   set,
   exerciseName,
+  totalSets,
   open,
   onOpenChange,
   onSave,
@@ -244,6 +272,7 @@ export default function SetEditDrawer({
           key={set.id}
           set={set}
           exerciseName={exerciseName}
+          totalSets={totalSets}
           onOpenChange={onOpenChange}
           onSave={onSave}
         />
