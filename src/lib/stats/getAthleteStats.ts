@@ -27,7 +27,7 @@ function getCurrentWeekStart(): Date {
   return monday;
 }
 
-function _getMonthAgo(): Date {
+function getMonthAgo(): Date {
   const date = new Date();
   date.setMonth(date.getMonth() - 1);
   date.setHours(0, 0, 0, 0);
@@ -83,6 +83,53 @@ export const getAthleteStats = cache(async function getAthleteStats(
     },
   });
 
+  // Adherence calculation
+  const adherenceStartDate =
+    adherenceRange === "week" ? currentWeekStart : getMonthAgo();
+
+  const setsWithActuals = await prisma.set.findMany({
+    where: {
+      workoutBlockExercise: {
+        workoutBlock: {
+          workoutDay: {
+            athleteId,
+            weekStartDate: { gte: adherenceStartDate },
+          },
+        },
+      },
+      completed: true,
+      skipped: false,
+      actualWeightKg: { not: null },
+      actualReps: { not: null },
+      weightKg: { not: null },
+      reps: { not: null },
+    },
+    select: {
+      weightKg: true,
+      reps: true,
+      actualWeightKg: true,
+      actualReps: true,
+    },
+  });
+
+  let avgWeightDiff: number | null = null;
+  let avgRepsDiff: number | null = null;
+
+  if (setsWithActuals.length > 0) {
+    const totalWeightDiff = setsWithActuals.reduce((sum, s) => {
+      const actual = s.actualWeightKg ?? 0;
+      const prescribed = s.weightKg ?? 0;
+      return sum + (actual - prescribed);
+    }, 0);
+    const totalRepsDiff = setsWithActuals.reduce((sum, s) => {
+      const actual = s.actualReps ?? 0;
+      const prescribed = s.reps ?? 0;
+      return sum + (actual - prescribed);
+    }, 0);
+    avgWeightDiff = totalWeightDiff / setsWithActuals.length;
+    avgRepsDiff = totalRepsDiff / setsWithActuals.length;
+  }
+
   return {
     weeklyCompletion: {
       completed: completedCount,
@@ -91,8 +138,8 @@ export const getAthleteStats = cache(async function getAthleteStats(
     },
     adherence: {
       range: adherenceRange,
-      avgWeightDiff: null,
-      avgRepsDiff: null,
+      avgWeightDiff,
+      avgRepsDiff,
     },
     personalRecords: [],
   };
