@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { logout } from "@/lib/auth/actions/logout";
 
 type UserMenuProps = {
@@ -61,12 +62,19 @@ export default function UserMenu({ userName, userEmail }: UserMenuProps) {
             <p className="text-xs text-slate-500 truncate">{userEmail}</p>
           </div>
           <div className="p-2">
+            <Link
+              href="/stats"
+              className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+              onClick={() => setIsOpen(false)}
+            >
+              Estadísticas
+            </Link>
             <form action={logout}>
               <button
                 type="submit"
                 className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
               >
-                Log out
+                Cerrar sesión
               </button>
             </form>
           </div>
