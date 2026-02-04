@@ -130,6 +130,58 @@ export const getAthleteStats = cache(async function getAthleteStats(
     avgRepsDiff = totalRepsDiff / setsWithActuals.length;
   }
 
+  // Personal records - top 5 by max weight
+  const allCompletedSets = await prisma.set.findMany({
+    where: {
+      workoutBlockExercise: {
+        workoutBlock: {
+          workoutDay: {
+            athleteId,
+          },
+        },
+      },
+      completed: true,
+      skipped: false,
+      actualWeightKg: { not: null },
+    },
+    select: {
+      actualWeightKg: true,
+      completedAt: true,
+      workoutBlockExercise: {
+        select: {
+          exercise: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Group by exercise and find max
+  const prMap = new Map<
+    string,
+    { exerciseName: string; weightKg: number; achievedAt: Date }
+  >();
+
+  for (const set of allCompletedSets) {
+    const exerciseId = set.workoutBlockExercise.exercise.id;
+    const exerciseName = set.workoutBlockExercise.exercise.name;
+    const weightKg = set.actualWeightKg ?? 0;
+    const achievedAt = set.completedAt ?? new Date();
+
+    const existing = prMap.get(exerciseId);
+    if (!existing || weightKg > existing.weightKg) {
+      prMap.set(exerciseId, { exerciseName, weightKg, achievedAt });
+    }
+  }
+
+  const personalRecords = Array.from(prMap.values())
+    .sort((a, b) => b.weightKg - a.weightKg)
+    .slice(0, 5);
+
   return {
     weeklyCompletion: {
       completed: completedCount,
@@ -141,6 +193,6 @@ export const getAthleteStats = cache(async function getAthleteStats(
       avgWeightDiff,
       avgRepsDiff,
     },
-    personalRecords: [],
+    personalRecords,
   };
 });

@@ -166,4 +166,106 @@ describe("getAthleteStats", () => {
       expect(result.adherence.avgRepsDiff).toBeNull();
     });
   });
+
+  describe("personalRecords", () => {
+    test("returns top 5 exercises by max weight", async () => {
+      const trainer = await userFactory.create({ role: UserRole.trainer });
+      const athlete = await userFactory.create({ role: UserRole.athlete });
+
+      const exercises = await Promise.all([
+        exerciseFactory.create({ name: "Deadlift" }),
+        exerciseFactory.create({ name: "Squat" }),
+        exerciseFactory.create({ name: "Bench" }),
+        exerciseFactory.create({ name: "Row" }),
+        exerciseFactory.create({ name: "Press" }),
+        exerciseFactory.create({ name: "Curl" }), // 6th - should not appear
+      ]);
+
+      const workoutDay = await workoutDayFactory.create({
+        trainer: { connect: { id: trainer.id } },
+        athlete: { connect: { id: athlete.id } },
+        weekStartDate: new Date(),
+        weekNumber: 1,
+        dayIndex: 1,
+      });
+
+      const block = await workoutBlockFactory.create({
+        workoutDay: { connect: { id: workoutDay.id } },
+        order: 1,
+      });
+
+      // Create sets with different max weights
+      const weights = [100, 80, 70, 60, 50, 40]; // Curl at 40 should be excluded
+      for (let i = 0; i < exercises.length; i++) {
+        const exercise = exercises[i];
+        if (!exercise) continue;
+        const workoutExercise = await workoutBlockExerciseFactory.create({
+          exercise: { connect: { id: exercise.id } },
+          workoutBlock: { connect: { id: block.id } },
+          order: i + 1,
+        });
+
+        await setFactory.create({
+          workoutBlockExercise: { connect: { id: workoutExercise.id } },
+          setIndex: 1,
+          actualWeightKg: weights[i],
+          completed: true,
+        });
+      }
+
+      const result = await getAthleteStats(athlete.id, "week");
+
+      expect(result.personalRecords).toHaveLength(5);
+      expect(result.personalRecords[0]?.exerciseName).toBe("Deadlift");
+      expect(result.personalRecords[0]?.weightKg).toBe(100);
+      expect(result.personalRecords[4]?.exerciseName).toBe("Press");
+      expect(result.personalRecords[4]?.weightKg).toBe(50);
+    });
+
+    test("only counts completed sets", async () => {
+      const trainer = await userFactory.create({ role: UserRole.trainer });
+      const athlete = await userFactory.create({ role: UserRole.athlete });
+      const exercise = await exerciseFactory.create({ name: "Deadlift" });
+
+      const workoutDay = await workoutDayFactory.create({
+        trainer: { connect: { id: trainer.id } },
+        athlete: { connect: { id: athlete.id } },
+        weekStartDate: new Date(),
+        weekNumber: 1,
+        dayIndex: 1,
+      });
+
+      const block = await workoutBlockFactory.create({
+        workoutDay: { connect: { id: workoutDay.id } },
+        order: 1,
+      });
+
+      const workoutExercise = await workoutBlockExerciseFactory.create({
+        exercise: { connect: { id: exercise.id } },
+        workoutBlock: { connect: { id: block.id } },
+        order: 1,
+      });
+
+      // Skipped set with higher weight should not count
+      await setFactory.create({
+        workoutBlockExercise: { connect: { id: workoutExercise.id } },
+        setIndex: 1,
+        actualWeightKg: 200,
+        skipped: true,
+      });
+
+      // Completed set with lower weight
+      await setFactory.create({
+        workoutBlockExercise: { connect: { id: workoutExercise.id } },
+        setIndex: 2,
+        actualWeightKg: 100,
+        completed: true,
+      });
+
+      const result = await getAthleteStats(athlete.id, "week");
+
+      expect(result.personalRecords).toHaveLength(1);
+      expect(result.personalRecords[0]?.weightKg).toBe(100);
+    });
+  });
 });
