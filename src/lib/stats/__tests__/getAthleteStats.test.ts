@@ -20,11 +20,17 @@ describe("getAthleteStats", () => {
       const athlete = await userFactory.create({ role: UserRole.athlete });
       const exercise = await exerciseFactory.create();
 
-      // Current week (use a Monday as weekStartDate)
+      // Current week (use a Monday as weekStartDate) - UTC based
       const today = new Date();
-      const monday = new Date(today);
-      monday.setDate(today.getDate() - today.getDay() + 1);
-      monday.setHours(0, 0, 0, 0);
+      const dayOfWeek = today.getUTCDay();
+      const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const monday = new Date(
+        Date.UTC(
+          today.getUTCFullYear(),
+          today.getUTCMonth(),
+          today.getUTCDate() - daysToSubtract
+        )
+      );
 
       const workoutDay = await workoutDayFactory.create({
         trainer: { connect: { id: trainer.id } },
@@ -80,11 +86,11 @@ describe("getAthleteStats", () => {
 
       const result = await getAthleteStats(athlete.id, "week");
 
-      expect(result.weeklyCompletion).toEqual({
-        completed: 3,
-        skipped: 2,
-        total: 6,
-      });
+      expect(result.weeklyCompletion.completed).toBe(3);
+      expect(result.weeklyCompletion.skipped).toBe(2);
+      expect(result.weeklyCompletion.total).toBe(6);
+      expect(result.weeklyCompletion.weekStart).toBeInstanceOf(Date);
+      expect(result.weeklyCompletion.weekEnd).toBeInstanceOf(Date);
     });
   });
 
@@ -94,10 +100,17 @@ describe("getAthleteStats", () => {
       const athlete = await userFactory.create({ role: UserRole.athlete });
       const exercise = await exerciseFactory.create();
 
+      // Current week (use a Monday as weekStartDate) - UTC based
       const today = new Date();
-      const monday = new Date(today);
-      monday.setDate(today.getDate() - today.getDay() + 1);
-      monday.setHours(0, 0, 0, 0);
+      const dayOfWeek = today.getUTCDay();
+      const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const monday = new Date(
+        Date.UTC(
+          today.getUTCFullYear(),
+          today.getUTCMonth(),
+          today.getUTCDate() - daysToSubtract
+        )
+      );
 
       const workoutDay = await workoutDayFactory.create({
         trainer: { connect: { id: trainer.id } },

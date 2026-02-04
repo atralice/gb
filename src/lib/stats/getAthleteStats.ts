@@ -6,6 +6,8 @@ export type AthleteStats = {
     completed: number;
     skipped: number;
     total: number;
+    weekStart: Date;
+    weekEnd: Date;
   };
   adherence: {
     range: "week" | "month";
@@ -19,26 +21,34 @@ export type AthleteStats = {
   }>;
 };
 
-function getCurrentWeekStart(): Date {
-  const today = new Date();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - today.getDay() + 1);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
-}
-
 function getMonthAgo(): Date {
-  const date = new Date();
-  date.setMonth(date.getMonth() - 1);
-  date.setHours(0, 0, 0, 0);
-  return date;
+  const today = new Date();
+  return new Date(
+    Date.UTC(
+      today.getUTCFullYear(),
+      today.getUTCMonth() - 1,
+      today.getUTCDate()
+    )
+  );
 }
 
 export const getAthleteStats = cache(async function getAthleteStats(
   athleteId: string,
   adherenceRange: "week" | "month"
 ): Promise<AthleteStats> {
-  const currentWeekStart = getCurrentWeekStart();
+  const today = new Date();
+
+  // Find the most recent weekStartDate that is <= today from the user's actual data
+  const currentWeekDay = await prisma.workoutDay.findFirst({
+    where: {
+      athleteId,
+      weekStartDate: { lte: today },
+    },
+    orderBy: { weekStartDate: "desc" },
+    select: { weekStartDate: true },
+  });
+
+  const currentWeekStart = currentWeekDay?.weekStartDate ?? today;
 
   // Weekly completion - sets from current week
   const weeklyStats = await prisma.set.aggregate({
@@ -182,11 +192,17 @@ export const getAthleteStats = cache(async function getAthleteStats(
     .sort((a, b) => b.weightKg - a.weightKg)
     .slice(0, 5);
 
+  // Calculate week end (Sunday)
+  const weekEnd = new Date(currentWeekStart);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+
   return {
     weeklyCompletion: {
       completed: completedCount,
       skipped: skippedCount,
       total: weeklyStats._count.id,
+      weekStart: currentWeekStart,
+      weekEnd,
     },
     adherence: {
       range: adherenceRange,

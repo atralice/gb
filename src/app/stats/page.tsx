@@ -54,6 +54,8 @@ export default async function StatsPage({ searchParams }: StatsPageProps) {
           completed={stats.weeklyCompletion.completed}
           skipped={stats.weeklyCompletion.skipped}
           total={stats.weeklyCompletion.total}
+          weekStart={stats.weeklyCompletion.weekStart}
+          weekEnd={stats.weeklyCompletion.weekEnd}
         />
 
         <AdherenceCard
