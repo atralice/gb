@@ -26,6 +26,7 @@ type WorkoutHeaderProps = {
   isDayCompleted?: boolean;
   userName?: string | null;
   userEmail: string;
+  userRole?: "athlete" | "trainer" | "admin";
 };
 
 export default function WorkoutHeader({
@@ -39,6 +40,7 @@ export default function WorkoutHeader({
   isDayCompleted = false,
   userName,
   userEmail,
+  userRole,
 }: WorkoutHeaderProps) {
   const formattedDate = format(weekStartDate, "d MMM", { locale: es });
 
@@ -76,7 +78,11 @@ export default function WorkoutHeader({
             />
           </svg>
         </button>
-        <UserMenu userName={userName} userEmail={userEmail} />
+        <UserMenu
+          userName={userName}
+          userEmail={userEmail}
+          userRole={userRole}
+        />
       </div>
 
       {/* Block segmented control */}

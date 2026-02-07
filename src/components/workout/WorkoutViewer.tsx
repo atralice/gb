@@ -21,6 +21,7 @@ type WorkoutViewerProps = {
   suggestedDay: number;
   userName?: string | null;
   userEmail: string;
+  userRole?: "athlete" | "trainer" | "admin";
 };
 
 export default function WorkoutViewer({
@@ -30,6 +31,7 @@ export default function WorkoutViewer({
   suggestedDay,
   userName,
   userEmail,
+  userRole,
 }: WorkoutViewerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -146,6 +148,7 @@ export default function WorkoutViewer({
         isDayCompleted={isDayCompleted}
         userName={userName}
         userEmail={userEmail}
+        userRole={userRole}
       />
 
       <div

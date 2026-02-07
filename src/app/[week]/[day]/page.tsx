@@ -54,6 +54,7 @@ export default async function WorkoutPage({
       suggestedDay={suggested?.dayIndex ?? 1}
       userName={user.name}
       userEmail={user.email}
+      userRole={user.role}
     />
   );
 }

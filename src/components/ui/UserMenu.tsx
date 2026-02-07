@@ -7,9 +7,14 @@ import { logout } from "@/lib/auth/actions/logout";
 type UserMenuProps = {
   userName?: string | null;
   userEmail: string;
+  userRole?: "athlete" | "trainer" | "admin";
 };
 
-export default function UserMenu({ userName, userEmail }: UserMenuProps) {
+export default function UserMenu({
+  userName,
+  userEmail,
+  userRole = "athlete",
+}: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -62,6 +67,24 @@ export default function UserMenu({ userName, userEmail }: UserMenuProps) {
             <p className="text-xs text-slate-500 truncate">{userEmail}</p>
           </div>
           <div className="p-2">
+            {userRole === "trainer" && (
+              <Link
+                href="/trainer/athletes"
+                className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                Mis atletas
+              </Link>
+            )}
+            {userRole === "athlete" && (
+              <Link
+                href="/week"
+                className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                Ver semana
+              </Link>
+            )}
             <Link
               href="/stats"
               className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
