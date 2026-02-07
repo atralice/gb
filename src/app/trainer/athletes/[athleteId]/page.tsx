@@ -4,10 +4,11 @@ import getUser from "@/lib/auth/getUser";
 import { getAthleteWeek } from "@/lib/trainer/getAthleteWeek";
 import { getLatestWeekNumber } from "@/lib/trainer/getLatestWeekNumber";
 import WeekTable from "@/components/trainer/WeekTable";
+import CreateWeekDialogTrigger from "@/components/trainer/CreateWeekDialogTrigger";
 
 type AthleteWeekPageProps = {
   params: Promise<{ athleteId: string }>;
-  searchParams: Promise<{ week?: string }>;
+  searchParams: Promise<{ week?: string; create?: string }>;
 };
 
 export default async function AthleteWeekPage({
@@ -25,17 +26,18 @@ export default async function AthleteWeekPage({
   }
 
   const { athleteId } = await params;
-  const { week } = await searchParams;
+  const { week, create } = await searchParams;
 
   // Get week number from URL or default to latest
   let weekNumber: number;
+  const latest = await getLatestWeekNumber(athleteId);
+
   if (week) {
     weekNumber = parseInt(week, 10);
     if (isNaN(weekNumber)) {
       notFound();
     }
   } else {
-    const latest = await getLatestWeekNumber(athleteId);
     if (!latest) {
       return (
         <main className="min-h-screen bg-slate-50">
@@ -75,7 +77,10 @@ export default async function AthleteWeekPage({
 
   const weekData = await getAthleteWeek(athleteId, weekNumber);
 
-  if (!weekData) {
+  // If week doesn't exist and create=true, show dialog
+  const showCreateDialog = !weekData && create === "true" && latest !== null;
+
+  if (!weekData && !showCreateDialog) {
     notFound();
   }
 
@@ -103,12 +108,12 @@ export default async function AthleteWeekPage({
               </svg>
             </Link>
             <h1 className="text-lg font-semibold text-slate-900">
-              {weekData.athlete.name} - Semana {weekNumber}
+              {weekData?.athlete.name ?? "Atleta"} - Semana {weekNumber}
             </h1>
           </div>
 
           <div className="flex items-center gap-2">
-            {weekData.previousWeekExists ? (
+            {weekData?.previousWeekExists ? (
               <Link
                 href={`/trainer/athletes/${athleteId}?week=${weekNumber - 1}`}
                 className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
@@ -121,7 +126,7 @@ export default async function AthleteWeekPage({
               </span>
             )}
 
-            {weekData.nextWeekExists ? (
+            {weekData?.nextWeekExists ? (
               <Link
                 href={`/trainer/athletes/${athleteId}?week=${weekNumber + 1}`}
                 className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
@@ -141,8 +146,17 @@ export default async function AthleteWeekPage({
       </header>
 
       <div className="p-4">
-        <WeekTable data={weekData} mode="edit" />
+        {weekData && <WeekTable data={weekData} mode="edit" />}
       </div>
+
+      {showCreateDialog && latest !== null && (
+        <CreateWeekDialogTrigger
+          athleteId={athleteId}
+          trainerId={user.id}
+          sourceWeek={latest}
+          targetWeek={weekNumber}
+        />
+      )}
     </main>
   );
 }
