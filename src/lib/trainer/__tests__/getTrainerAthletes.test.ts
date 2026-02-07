@@ -111,6 +111,145 @@ describe("getTrainerAthletes", () => {
     });
   });
 
+  test("calculates last activity from most recent completed set", async () => {
+    const trainer = await userFactory.create({ role: UserRole.trainer });
+    const athlete = await userFactory.create({ role: UserRole.athlete });
+    const exercise = await exerciseFactory.create();
+
+    await trainerAthleteFactory.create({
+      trainer: { connect: { id: trainer.id } },
+      athlete: { connect: { id: athlete.id } },
+    });
+
+    const workoutDay = await workoutDayFactory.create({
+      trainer: { connect: { id: trainer.id } },
+      athlete: { connect: { id: athlete.id } },
+      weekStartDate: new Date(),
+      weekNumber: 1,
+      dayIndex: 1,
+    });
+
+    const block = await workoutBlockFactory.create({
+      workoutDay: { connect: { id: workoutDay.id } },
+      order: 1,
+    });
+
+    const workoutExercise = await workoutBlockExerciseFactory.create({
+      exercise: { connect: { id: exercise.id } },
+      workoutBlock: { connect: { id: block.id } },
+      order: 1,
+    });
+
+    const completedAt = new Date("2026-02-05T10:00:00Z");
+    await setFactory.create({
+      workoutBlockExercise: { connect: { id: workoutExercise.id } },
+      setIndex: 1,
+      completed: true,
+      completedAt,
+    });
+
+    const result = await getTrainerAthletes(trainer.id);
+
+    expect(result[0]?.lastActivity).toEqual(completedAt);
+  });
+
+  test("flags athlete as needing attention when inactive 4+ days", async () => {
+    const trainer = await userFactory.create({ role: UserRole.trainer });
+    const athlete = await userFactory.create({ role: UserRole.athlete });
+    const exercise = await exerciseFactory.create();
+
+    await trainerAthleteFactory.create({
+      trainer: { connect: { id: trainer.id } },
+      athlete: { connect: { id: athlete.id } },
+    });
+
+    const workoutDay = await workoutDayFactory.create({
+      trainer: { connect: { id: trainer.id } },
+      athlete: { connect: { id: athlete.id } },
+      weekStartDate: new Date(),
+      weekNumber: 1,
+      dayIndex: 1,
+    });
+
+    const block = await workoutBlockFactory.create({
+      workoutDay: { connect: { id: workoutDay.id } },
+      order: 1,
+    });
+
+    const workoutExercise = await workoutBlockExerciseFactory.create({
+      exercise: { connect: { id: exercise.id } },
+      workoutBlock: { connect: { id: block.id } },
+      order: 1,
+    });
+
+    // Last activity 5 days ago
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+
+    await setFactory.create({
+      workoutBlockExercise: { connect: { id: workoutExercise.id } },
+      setIndex: 1,
+      completed: true,
+      completedAt: fiveDaysAgo,
+    });
+
+    const result = await getTrainerAthletes(trainer.id);
+
+    expect(result[0]?.needsAttention).toBe(true);
+    expect(result[0]?.attentionReason).toBe("inactive");
+  });
+
+  test("flags athlete when current week done but next week missing", async () => {
+    const trainer = await userFactory.create({ role: UserRole.trainer });
+    const athlete = await userFactory.create({ role: UserRole.athlete });
+    const exercise = await exerciseFactory.create();
+
+    await trainerAthleteFactory.create({
+      trainer: { connect: { id: trainer.id } },
+      athlete: { connect: { id: athlete.id } },
+    });
+
+    // Current week
+    const today = new Date();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - today.getDay() + 1);
+    monday.setHours(0, 0, 0, 0);
+
+    const workoutDay = await workoutDayFactory.create({
+      trainer: { connect: { id: trainer.id } },
+      athlete: { connect: { id: athlete.id } },
+      weekStartDate: monday,
+      weekNumber: 5,
+      dayIndex: 1,
+    });
+
+    const block = await workoutBlockFactory.create({
+      workoutDay: { connect: { id: workoutDay.id } },
+      order: 1,
+    });
+
+    const workoutExercise = await workoutBlockExerciseFactory.create({
+      exercise: { connect: { id: exercise.id } },
+      workoutBlock: { connect: { id: block.id } },
+      order: 1,
+    });
+
+    // All sets completed (week is done)
+    await setFactory.create({
+      workoutBlockExercise: { connect: { id: workoutExercise.id } },
+      setIndex: 1,
+      completed: true,
+      completedAt: new Date(),
+    });
+
+    // No week 6 exists
+
+    const result = await getTrainerAthletes(trainer.id);
+
+    expect(result[0]?.needsAttention).toBe(true);
+    expect(result[0]?.attentionReason).toBe("no_next_week");
+  });
+
   test("returns empty array when trainer has no athletes", async () => {
     const trainer = await userFactory.create({ role: UserRole.trainer });
 
