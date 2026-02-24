@@ -19,6 +19,11 @@ export type AthleteWeekExercise = {
   id: string;
   exerciseId: string;
   exerciseName: string;
+  blockId: string;
+  blockLabel: string;
+  blockComment: string | null;
+  exerciseOrder: number;
+  exerciseComment: string | null;
   sets: AthleteWeekSet[];
 };
 
@@ -129,6 +134,11 @@ export const getAthleteWeek = cache(async function getAthleteWeek(
         id: ex.id,
         exerciseId: ex.exerciseId,
         exerciseName: ex.exercise.name,
+        blockId: block.id,
+        blockLabel: block.label ?? "",
+        blockComment: block.comment,
+        exerciseOrder: ex.order,
+        exerciseComment: ex.comment,
         sets: ex.sets.map((set) => ({
           id: set.id,
           setIndex: set.setIndex,

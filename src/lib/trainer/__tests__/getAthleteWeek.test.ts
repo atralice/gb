@@ -81,6 +81,52 @@ describe("getAthleteWeek", () => {
     expect(result).toBeNull();
   });
 
+  test("includes block info on exercises", async () => {
+    const trainer = await userFactory.create({ role: UserRole.trainer });
+    const athlete = await userFactory.create({ role: UserRole.athlete });
+    const exercise = await exerciseFactory.create({ name: "Peso muerto" });
+
+    const day = await workoutDayFactory.create({
+      trainer: { connect: { id: trainer.id } },
+      athlete: { connect: { id: athlete.id } },
+      weekNumber: 5,
+      dayIndex: 1,
+    });
+
+    const block = await workoutBlockFactory.create({
+      workoutDay: { connect: { id: day.id } },
+      order: 1,
+      label: "B",
+      comment: "Rest 2 min",
+    });
+
+    const wbe = await workoutBlockExerciseFactory.create({
+      exercise: { connect: { id: exercise.id } },
+      workoutBlock: { connect: { id: block.id } },
+      order: 1,
+      comment: "Keep back straight",
+    });
+
+    await setFactory.create({
+      workoutBlockExercise: { connect: { id: wbe.id } },
+      setIndex: 1,
+      reps: 5,
+      weightKg: 100,
+    });
+
+    const result = await getAthleteWeek(athlete.id, 5);
+
+    expect(result).not.toBeNull();
+    const ex = result?.days[0]?.exercises[0];
+    expect(ex).toBeDefined();
+
+    expect(ex?.blockId).toBe(block.id);
+    expect(ex?.blockLabel).toBe("B");
+    expect(ex?.blockComment).toBe("Rest 2 min");
+    expect(ex?.exerciseOrder).toBe(1);
+    expect(ex?.exerciseComment).toBe("Keep back straight");
+  });
+
   test("includes previous and next week existence flags", async () => {
     const trainer = await userFactory.create({ role: UserRole.trainer });
     const athlete = await userFactory.create({ role: UserRole.athlete });
