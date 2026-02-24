@@ -6,7 +6,7 @@ import type {
   AthleteOverviewData,
   OverviewDay,
 } from "@/lib/trainer/getAthleteOverview";
-import { formatSetsCompact } from "@/lib/trainer/formatSetsCompact";
+import CompactSets from "@/components/trainer/CompactSets";
 import { format } from "date-fns";
 
 type Props = {
@@ -133,16 +133,17 @@ function DayOverview({
                         ex.blockLabel === row.blockLabel &&
                         ex.exerciseOrder === row.exerciseOrder
                     );
-                    const setsText = matchingEx
-                      ? formatSetsCompact(matchingEx.sets)
-                      : "";
 
                     return (
                       <td
                         key={`week-${week.weekNumber}`}
-                        className="px-3 py-2 text-center text-sm text-slate-600 whitespace-nowrap"
+                        className="px-3 py-2 text-center text-slate-600 whitespace-nowrap"
                       >
-                        {setsText || "—"}
+                        {matchingEx ? (
+                          <CompactSets sets={matchingEx.sets} />
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
                       </td>
                     );
                   })}
