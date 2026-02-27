@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -26,6 +27,7 @@ export default function DayPickerDrawer({
   suggestedDay,
 }: DayPickerDrawerProps) {
   const router = useRouter();
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Group days by week
   const weekMap = new Map<
@@ -55,23 +57,82 @@ export default function DayPickerDrawer({
         data.days.length > 0 && data.days.every((d) => d.isCompleted),
     }));
 
-  const currentWeekData = weekMap.get(currentWeek);
-  const daysInCurrentWeek = currentWeekData?.days ?? [];
+  // Find the week that contains today by month/day
+  // (handles seed data where year may differ from current year)
+  const todaysWeek = (() => {
+    if (weeks.length === 0) return currentWeek;
+    const now = new Date();
+    const year = now.getFullYear();
+    const todayNorm = new Date(year, now.getMonth(), now.getDate()).getTime();
 
-  const handleWeekSelect = (weekNumber: number) => {
-    const weekData = weekMap.get(weekNumber);
-    if (weekData && weekData.days.length > 0) {
-      const sortedDays = weekData.days.sort((a, b) => a.dayIndex - b.dayIndex);
-      const firstDay = sortedDays[0];
-      if (firstDay) {
-        router.push(`/${weekNumber}/${firstDay.dayIndex}`);
-        onOpenChange(false);
+    for (let i = 0; i < weeks.length; i++) {
+      const week = weeks[i];
+      if (!week) continue;
+      const startNorm = new Date(
+        year,
+        week.weekStartDate.getMonth(),
+        week.weekStartDate.getDate()
+      ).getTime();
+      const nextWeek = weeks[i + 1];
+      const nextNorm = nextWeek
+        ? new Date(
+            year,
+            nextWeek.weekStartDate.getMonth(),
+            nextWeek.weekStartDate.getDate()
+          ).getTime()
+        : Infinity;
+
+      if (todayNorm >= startNorm && todayNorm < nextNorm) {
+        return week.weekNumber;
       }
     }
+    return currentWeek;
+  })();
+
+  const [selectedWeek, setSelectedWeek] = useState(todaysWeek);
+  const [prevOpen, setPrevOpen] = useState(false);
+
+  // Reset selected week to today's week when drawer opens (render-time state adjustment)
+  if (open && !prevOpen) {
+    setSelectedWeek(todaysWeek);
+  }
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+  }
+
+  // Scroll to selected week whenever it changes while drawer is open
+  // Uses rAF to wait for the portal/animation to paint
+  const scrollToActiveWeek = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const activeButton = container.querySelector("[data-active-week]");
+    if (!activeButton) return;
+    const containerRect = container.getBoundingClientRect();
+    const buttonRect = activeButton.getBoundingClientRect();
+    const scrollLeft =
+      buttonRect.left -
+      containerRect.left -
+      containerRect.width / 2 +
+      buttonRect.width / 2 +
+      container.scrollLeft;
+    container.scrollTo({ left: scrollLeft, behavior: "instant" });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(scrollToActiveWeek);
+    return () => cancelAnimationFrame(frame);
+  }, [open, selectedWeek, scrollToActiveWeek]);
+
+  const selectedWeekData = weekMap.get(selectedWeek);
+  const daysInSelectedWeek = selectedWeekData?.days ?? [];
+
+  const handleWeekSelect = (weekNumber: number) => {
+    setSelectedWeek(weekNumber);
   };
 
   const handleDaySelect = (dayIndex: number) => {
-    router.push(`/${currentWeek}/${dayIndex}`);
+    router.push(`/${selectedWeek}/${dayIndex}`);
     onOpenChange(false);
   };
 
@@ -79,16 +140,22 @@ export default function DayPickerDrawer({
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerTitle>Elegir entrenamiento</DrawerTitle>
 
-      {/* Week selector */}
+      {/* Week selector - scrollable, showing ~3 at a time */}
       <p className="mb-2 text-sm text-slate-500">Semana</p>
-      <div className="mb-6 flex gap-2">
+      <div
+        ref={scrollRef}
+        className="mb-6 flex gap-2 overflow-x-auto scrollbar-none pb-1"
+      >
         {weeks.map((week) => (
           <button
             key={week.weekNumber}
             onClick={() => handleWeekSelect(week.weekNumber)}
+            {...(selectedWeek === week.weekNumber
+              ? { "data-active-week": true }
+              : {})}
             className={cn(
-              "relative flex-1 rounded-xl py-3 text-sm font-medium transition-all",
-              currentWeek === week.weekNumber
+              "relative min-w-[calc((100%-1rem)/3)] flex-shrink-0 rounded-xl py-3 text-sm font-medium transition-all",
+              selectedWeek === week.weekNumber
                 ? "bg-slate-800 text-white"
                 : week.isCompleted
                   ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
@@ -109,7 +176,7 @@ export default function DayPickerDrawer({
       {/* Day selector */}
       <p className="mb-2 text-sm text-slate-500">Día</p>
       <div className="flex gap-2">
-        {daysInCurrentWeek
+        {daysInSelectedWeek
           .sort((a, b) => a.dayIndex - b.dayIndex)
           .map((day) => (
             <button
@@ -117,7 +184,7 @@ export default function DayPickerDrawer({
               onClick={() => handleDaySelect(day.dayIndex)}
               className={cn(
                 "relative flex-1 rounded-xl py-4 text-sm font-medium transition-all",
-                currentDay === day.dayIndex
+                selectedWeek === currentWeek && currentDay === day.dayIndex
                   ? "bg-slate-800 text-white"
                   : day.isCompleted
                     ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
