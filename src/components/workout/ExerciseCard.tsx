@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/cn";
 import SetPill from "./SetPill";
+import type { SetStatus } from "./SetPill";
 import Spinner from "@/components/ui/Spinner";
 import { calculateVolumes, getSetColorClasses } from "@/lib/workouts/setColors";
 import { useSetActions } from "@/lib/workouts/useSetActions";
@@ -13,6 +14,25 @@ const LONG_PRESS_THRESHOLD = 500;
 type Block = NonNullable<WorkoutDayWithBlocks>["blocks"][number];
 type Exercise = Block["exercises"][number]["exercise"];
 type SetWithLog = Block["exercises"][number]["sets"][number];
+
+type ExerciseStatus = "none" | "allCompleted" | "allSkipped" | "mixedDone";
+
+function deriveExerciseStatus(
+  sets: SetWithLog[],
+  completedSets: Set<string>,
+  skippedSets: Set<string>
+): ExerciseStatus {
+  if (sets.length === 0) return "none";
+  const allCompleted = completedSets.size === sets.length;
+  const allSkipped = skippedSets.size === sets.length;
+  const allDone = sets.every(
+    (s) => completedSets.has(s.id) || skippedSets.has(s.id)
+  );
+  if (allCompleted) return "allCompleted";
+  if (allSkipped) return "allSkipped";
+  if (allDone) return "mixedDone";
+  return "none";
+}
 
 type ExerciseCardProps = {
   exercise: Exercise;
@@ -60,13 +80,8 @@ export default function ExerciseCard({
 
   const { volumes, minVolume, maxVolume } = calculateVolumes(sets);
 
-  // Computed states
-  const allCompleted = completedSets.size === sets.length && sets.length > 0;
-  const allSkipped = skippedSets.size === sets.length && sets.length > 0;
-  const allDone =
-    sets.length > 0 &&
-    sets.every((s) => completedSets.has(s.id) || skippedSets.has(s.id));
-  const mixedDone = allDone && !allCompleted && !allSkipped;
+  // Derived exercise status
+  const exerciseStatus = deriveExerciseStatus(sets, completedSets, skippedSets);
 
   const handleSetTap = (tappedSet: SetWithLog, index: number) => {
     const isCompleted = completedSets.has(tappedSet.id);
@@ -142,7 +157,7 @@ export default function ExerciseCard({
   };
 
   const handleToggleAll = useCallback(() => {
-    if (allDone) {
+    if (exerciseStatus !== "none") {
       setCompletedSets(new Set());
       setSkippedSets(new Set());
       resetAllSets();
@@ -151,10 +166,10 @@ export default function ExerciseCard({
       setSkippedSets(new Set());
       completeAllSets();
     }
-  }, [sets, allDone, resetAllSets, completeAllSets]);
+  }, [sets, exerciseStatus, resetAllSets, completeAllSets]);
 
   const handleSkipAll = useCallback(() => {
-    if (allSkipped) {
+    if (exerciseStatus === "allSkipped") {
       setSkippedSets(new Set());
       unskipAllSets();
     } else {
@@ -162,7 +177,7 @@ export default function ExerciseCard({
       setCompletedSets(new Set());
       skipAllSets();
     }
-  }, [sets, allSkipped, unskipAllSets, skipAllSets]);
+  }, [sets, exerciseStatus, unskipAllSets, skipAllSets]);
 
   // Long press handling for the checkbox button
   const btnLongPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -214,11 +229,11 @@ export default function ExerciseCard({
     <div
       className={cn(
         "rounded-2xl border bg-white p-4 shadow-sm transition-all duration-300",
-        allCompleted
+        exerciseStatus === "allCompleted"
           ? "border-emerald-300 bg-emerald-50/30"
-          : allSkipped
+          : exerciseStatus === "allSkipped"
             ? "border-slate-200 bg-slate-50/50"
-            : mixedDone
+            : exerciseStatus === "mixedDone"
               ? "border-slate-300 bg-slate-50/30"
               : "border-slate-100",
         isPending && "opacity-70"
@@ -235,9 +250,10 @@ export default function ExerciseCard({
           <h3
             className={cn(
               "text-base font-semibold leading-tight transition-colors group-hover:text-blue-600",
-              allCompleted
+              exerciseStatus === "allCompleted"
                 ? "text-emerald-700"
-                : allSkipped || mixedDone
+                : exerciseStatus === "allSkipped" ||
+                    exerciseStatus === "mixedDone"
                   ? "text-slate-500"
                   : "text-slate-800"
             )}
@@ -270,9 +286,10 @@ export default function ExerciseCard({
           disabled={isPending}
           className={cn(
             "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all",
-            allCompleted
+            exerciseStatus === "allCompleted"
               ? "border-emerald-500 bg-emerald-500 hover:bg-emerald-600"
-              : allSkipped || mixedDone
+              : exerciseStatus === "allSkipped" ||
+                  exerciseStatus === "mixedDone"
                 ? "border-slate-400 bg-slate-400 hover:bg-slate-500"
                 : "border-slate-300 hover:border-slate-400 hover:bg-slate-50",
             isPending && "cursor-wait"
@@ -282,12 +299,10 @@ export default function ExerciseCard({
             <Spinner
               size="sm"
               className={
-                allCompleted || allSkipped || mixedDone
-                  ? "text-white"
-                  : "text-slate-400"
+                exerciseStatus !== "none" ? "text-white" : "text-slate-400"
               }
             />
-          ) : allCompleted ? (
+          ) : exerciseStatus === "allCompleted" ? (
             <svg
               className="h-4 w-4 text-white"
               fill="none"
@@ -301,7 +316,7 @@ export default function ExerciseCard({
                 d="M5 13l4 4L19 7"
               />
             </svg>
-          ) : allSkipped ? (
+          ) : exerciseStatus === "allSkipped" ? (
             <svg
               className="h-3.5 w-3.5 text-white"
               fill="none"
@@ -315,7 +330,7 @@ export default function ExerciseCard({
                 d="M13 5l7 7-7 7M5 5l7 7-7 7"
               />
             </svg>
-          ) : mixedDone ? (
+          ) : exerciseStatus === "mixedDone" ? (
             // Horizontal line to indicate "done but mixed"
             <svg
               className="h-4 w-4 text-white"
@@ -345,6 +360,12 @@ export default function ExerciseCard({
           const displayDuration =
             set.actualDurationSeconds ?? set.durationSeconds;
 
+          const setStatus: SetStatus = skippedSets.has(set.id)
+            ? "skipped"
+            : completedSets.has(set.id)
+              ? "completed"
+              : "pending";
+
           return (
             <SetPill
               key={set.id}
@@ -352,8 +373,7 @@ export default function ExerciseCard({
               weightKg={displayWeight}
               durationSeconds={displayDuration}
               repsPerSide={set.repsPerSide}
-              completed={completedSets.has(set.id)}
-              skipped={skippedSets.has(set.id)}
+              status={setStatus}
               colorClasses={colorClasses}
               onTap={() => handleSetTap(set, index)}
               onDoubleTap={() => onSetDoubleTap(set, exercise.name, sets)}

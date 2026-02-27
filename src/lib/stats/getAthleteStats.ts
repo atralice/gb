@@ -1,5 +1,6 @@
 import { cache } from "react";
 import prisma from "@/lib/prisma";
+import { findCurrentWeekStart } from "@/lib/workouts/findCurrentWeek";
 
 export type AthleteStats = {
   weeklyCompletion: {
@@ -36,139 +37,117 @@ export const getAthleteStats = cache(async function getAthleteStats(
   athleteId: string,
   adherenceRange: "week" | "month"
 ): Promise<AthleteStats> {
-  const today = new Date();
-
-  // Find the most recent weekStartDate that is <= today from the user's actual data
-  const currentWeekDay = await prisma.workoutDay.findFirst({
-    where: {
-      athleteId,
-      weekStartDate: { lte: today },
-    },
-    orderBy: { weekStartDate: "desc" },
+  // Fetch distinct week start dates sorted ascending
+  const allWeeks = await prisma.workoutDay.findMany({
+    where: { athleteId },
     select: { weekStartDate: true },
+    distinct: ["weekStartDate"],
+    orderBy: { weekStartDate: "asc" },
   });
 
-  const currentWeekStart = currentWeekDay?.weekStartDate ?? today;
-
-  // Weekly completion - sets from current week
-  const weeklyStats = await prisma.set.aggregate({
-    where: {
-      workoutBlockExercise: {
-        workoutBlock: {
-          workoutDay: {
-            athleteId,
-            weekStartDate: currentWeekStart,
-          },
-        },
-      },
-    },
-    _count: { id: true },
-  });
-
-  const completedCount = await prisma.set.count({
-    where: {
-      workoutBlockExercise: {
-        workoutBlock: {
-          workoutDay: {
-            athleteId,
-            weekStartDate: currentWeekStart,
-          },
-        },
-      },
-      completed: true,
-    },
-  });
-
-  const skippedCount = await prisma.set.count({
-    where: {
-      workoutBlockExercise: {
-        workoutBlock: {
-          workoutDay: {
-            athleteId,
-            weekStartDate: currentWeekStart,
-          },
-        },
-      },
-      skipped: true,
-    },
-  });
+  const currentWeekStart =
+    findCurrentWeekStart(allWeeks) ??
+    allWeeks.at(-1)?.weekStartDate ??
+    new Date();
 
   // Adherence calculation
   const adherenceStartDate =
     adherenceRange === "week" ? currentWeekStart : getMonthAgo();
 
-  const setsWithActuals = await prisma.set.findMany({
-    where: {
-      workoutBlockExercise: {
-        workoutBlock: {
-          workoutDay: {
-            athleteId,
-            weekStartDate: { gte: adherenceStartDate },
+  const currentWeekFilter = {
+    workoutBlockExercise: {
+      workoutBlock: {
+        workoutDay: {
+          athleteId,
+          weekStartDate: currentWeekStart,
+        },
+      },
+    },
+  } as const;
+
+  // Run all independent queries in parallel
+  const [
+    weeklyStats,
+    completedCount,
+    skippedCount,
+    setsWithActuals,
+    allCompletedSets,
+  ] = await Promise.all([
+    prisma.set.aggregate({
+      where: currentWeekFilter,
+      _count: { id: true },
+    }),
+    prisma.set.count({
+      where: { ...currentWeekFilter, completed: true },
+    }),
+    prisma.set.count({
+      where: { ...currentWeekFilter, skipped: true },
+    }),
+    prisma.set.findMany({
+      where: {
+        workoutBlockExercise: {
+          workoutBlock: {
+            workoutDay: {
+              athleteId,
+              weekStartDate: { gte: adherenceStartDate },
+            },
+          },
+        },
+        completed: true,
+        skipped: false,
+        actualWeightKg: { not: null },
+        actualReps: { not: null },
+        weightKg: { not: null },
+        reps: { not: null },
+      },
+      select: {
+        weightKg: true,
+        reps: true,
+        actualWeightKg: true,
+        actualReps: true,
+      },
+    }),
+    prisma.set.findMany({
+      where: {
+        workoutBlockExercise: {
+          workoutBlock: {
+            workoutDay: { athleteId },
+          },
+        },
+        completed: true,
+        skipped: false,
+        actualWeightKg: { not: null },
+      },
+      select: {
+        actualWeightKg: true,
+        completedAt: true,
+        workoutBlockExercise: {
+          select: {
+            exercise: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
-      completed: true,
-      skipped: false,
-      actualWeightKg: { not: null },
-      actualReps: { not: null },
-      weightKg: { not: null },
-      reps: { not: null },
-    },
-    select: {
-      weightKg: true,
-      reps: true,
-      actualWeightKg: true,
-      actualReps: true,
-    },
-  });
+    }),
+  ]);
 
   let avgWeightDiff: number | null = null;
   let avgRepsDiff: number | null = null;
 
   if (setsWithActuals.length > 0) {
-    const totalWeightDiff = setsWithActuals.reduce((sum, s) => {
-      const actual = s.actualWeightKg ?? 0;
-      const prescribed = s.weightKg ?? 0;
-      return sum + (actual - prescribed);
-    }, 0);
-    const totalRepsDiff = setsWithActuals.reduce((sum, s) => {
-      const actual = s.actualReps ?? 0;
-      const prescribed = s.reps ?? 0;
-      return sum + (actual - prescribed);
-    }, 0);
+    let totalWeightDiff = 0;
+    let totalRepsDiff = 0;
+    for (const s of setsWithActuals) {
+      totalWeightDiff += (s.actualWeightKg ?? 0) - (s.weightKg ?? 0);
+      totalRepsDiff += (s.actualReps ?? 0) - (s.reps ?? 0);
+    }
     avgWeightDiff = totalWeightDiff / setsWithActuals.length;
     avgRepsDiff = totalRepsDiff / setsWithActuals.length;
   }
-
-  // Personal records - top 5 by max weight
-  const allCompletedSets = await prisma.set.findMany({
-    where: {
-      workoutBlockExercise: {
-        workoutBlock: {
-          workoutDay: {
-            athleteId,
-          },
-        },
-      },
-      completed: true,
-      skipped: false,
-      actualWeightKg: { not: null },
-    },
-    select: {
-      actualWeightKg: true,
-      completedAt: true,
-      workoutBlockExercise: {
-        select: {
-          exercise: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      },
-    },
-  });
 
   // Group by exercise and find max
   const prMap = new Map<

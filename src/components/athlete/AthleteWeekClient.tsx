@@ -19,7 +19,5 @@ export default function AthleteWeekClient({
     router.push(`/${weekNumber}/${dayIndex}`);
   };
 
-  return (
-    <WeekTable data={weekData} mode="readonly" onDayClick={handleDayClick} />
-  );
+  return <WeekTable data={weekData} onDayClick={handleDayClick} />;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import WorkoutHeader from "./WorkoutHeader";
 import BlockContent from "./BlockContent";
@@ -48,46 +48,52 @@ export default function WorkoutViewer({
     allSets: SetForEdit[];
   } | null>(null);
 
-  const blocks = workoutDay.blocks
-    .filter((b) => b.exercises.length > 0)
-    .sort((a, b) => {
-      // Warm-up blocks come first
-      const aIsWarmup =
-        a.label?.toLowerCase().includes("warm") ||
-        a.label?.toLowerCase().includes("calentamiento");
-      const bIsWarmup =
-        b.label?.toLowerCase().includes("warm") ||
-        b.label?.toLowerCase().includes("calentamiento");
-      if (aIsWarmup && !bIsWarmup) return -1;
-      if (!aIsWarmup && bIsWarmup) return 1;
-      // Then sort by order
-      return a.order - b.order;
-    });
+  const blocks = useMemo(
+    () =>
+      workoutDay.blocks
+        .filter((b) => b.exercises.length > 0)
+        .toSorted((a, b) => {
+          // Warm-up blocks come first
+          const aIsWarmup =
+            a.label?.toLowerCase().includes("warm") ||
+            a.label?.toLowerCase().includes("calentamiento");
+          const bIsWarmup =
+            b.label?.toLowerCase().includes("warm") ||
+            b.label?.toLowerCase().includes("calentamiento");
+          if (aIsWarmup && !bIsWarmup) return -1;
+          if (!aIsWarmup && bIsWarmup) return 1;
+          // Then sort by order
+          return a.order - b.order;
+        }),
+    [workoutDay.blocks]
+  );
   const activeBlock = blocks[activeBlockIndex];
 
   // Compute block status
   type BlockStatus = "incomplete" | "completed" | "skipped" | "mixed";
 
-  const getBlockStatus = (block: (typeof blocks)[number]): BlockStatus => {
-    const allSets = block.exercises.flatMap((e) => e.sets);
-    if (allSets.length === 0) return "incomplete";
+  const blocksWithStatus = useMemo(() => {
+    const getBlockStatus = (block: (typeof blocks)[number]): BlockStatus => {
+      const allSets = block.exercises.flatMap((e) => e.sets);
+      if (allSets.length === 0) return "incomplete";
 
-    const completedCount = allSets.filter((s) => s.completed).length;
-    const skippedCount = allSets.filter((s) => s.skipped).length;
-    const doneCount = completedCount + skippedCount;
+      const completedCount = allSets.filter((s) => s.completed).length;
+      const skippedCount = allSets.filter((s) => s.skipped).length;
+      const doneCount = completedCount + skippedCount;
 
-    if (doneCount < allSets.length) return "incomplete";
-    if (completedCount === allSets.length) return "completed";
-    if (skippedCount === allSets.length) return "skipped";
-    return "mixed";
-  };
+      if (doneCount < allSets.length) return "incomplete";
+      if (completedCount === allSets.length) return "completed";
+      if (skippedCount === allSets.length) return "skipped";
+      return "mixed";
+    };
 
-  const blocksWithStatus = blocks.map((block) => ({
-    id: block.id,
-    label: block.label,
-    order: block.order,
-    status: getBlockStatus(block),
-  }));
+    return blocks.map((block) => ({
+      id: block.id,
+      label: block.label,
+      order: block.order,
+      status: getBlockStatus(block),
+    }));
+  }, [blocks]);
 
   const isDayCompleted =
     blocks.length > 0 &&

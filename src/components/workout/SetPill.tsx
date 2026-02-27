@@ -4,13 +4,14 @@ import { useRef, useCallback } from "react";
 import { cn } from "@/lib/cn";
 import CheckmarkBadge from "@/components/ui/CheckmarkBadge";
 
+export type SetStatus = "pending" | "completed" | "skipped";
+
 type SetPillProps = {
   reps: number | null;
   weightKg: number | null;
   durationSeconds: number | null;
   repsPerSide: boolean;
-  completed?: boolean;
-  skipped?: boolean;
+  status?: SetStatus;
   onTap?: () => void;
   onDoubleTap?: () => void;
   onLongPress?: () => void;
@@ -25,8 +26,7 @@ export default function SetPill({
   weightKg,
   durationSeconds,
   repsPerSide,
-  completed = false,
-  skipped = false,
+  status = "pending",
   onTap,
   onDoubleTap,
   onLongPress,
@@ -161,10 +161,10 @@ export default function SetPill({
 
   // Determine visual state classes
   const getStateClasses = () => {
-    if (skipped) {
+    if (status === "skipped") {
       return "bg-slate-200 text-slate-500";
     }
-    if (completed) {
+    if (status === "completed") {
       return cn(
         "ring-2 ring-emerald-600 ring-offset-1 shadow-md",
         colorClasses || "bg-emerald-100 text-emerald-900"
@@ -188,12 +188,12 @@ export default function SetPill({
       )}
     >
       {/* Completed badge */}
-      {completed && !skipped && (
+      {status === "completed" && (
         <CheckmarkBadge size="sm" className="absolute -right-0.5 -top-0.5" />
       )}
 
       {/* Skipped badge */}
-      {skipped && (
+      {status === "skipped" && (
         <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-slate-400">
           <svg
             className="h-2.5 w-2.5 text-white"
@@ -214,7 +214,7 @@ export default function SetPill({
       <span
         className={cn(
           "text-2xl font-bold leading-none",
-          skipped && "line-through"
+          status === "skipped" && "line-through"
         )}
       >
         {isTimeBased ? durationSeconds : (reps ?? "x")}
@@ -224,7 +224,10 @@ export default function SetPill({
       </span>
       {hasWeight && (
         <span
-          className={cn("mt-1 text-xs font-medium", skipped && "line-through")}
+          className={cn(
+            "mt-1 text-xs font-medium",
+            status === "skipped" && "line-through"
+          )}
         >
           {weightKg}kg
         </span>

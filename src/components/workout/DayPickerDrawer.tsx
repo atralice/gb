@@ -8,6 +8,7 @@ import { Drawer, DrawerTitle } from "@/components/ui/Drawer";
 import { cn } from "@/lib/cn";
 import CheckmarkBadge from "@/components/ui/CheckmarkBadge";
 import type { AvailableWorkoutDay } from "@/lib/workouts/getAvailableWorkoutDays";
+import { findCurrentWeekStart } from "@/lib/workouts/findCurrentWeek";
 
 type DayPickerDrawerProps = {
   open: boolean;
@@ -57,37 +58,10 @@ export default function DayPickerDrawer({
         data.days.length > 0 && data.days.every((d) => d.isCompleted),
     }));
 
-  // Find the week that contains today by month/day
-  // (handles seed data where year may differ from current year)
-  const todaysWeek = (() => {
-    if (weeks.length === 0) return currentWeek;
-    const now = new Date();
-    const year = now.getFullYear();
-    const todayNorm = new Date(year, now.getMonth(), now.getDate()).getTime();
-
-    for (let i = 0; i < weeks.length; i++) {
-      const week = weeks[i];
-      if (!week) continue;
-      const startNorm = new Date(
-        year,
-        week.weekStartDate.getMonth(),
-        week.weekStartDate.getDate()
-      ).getTime();
-      const nextWeek = weeks[i + 1];
-      const nextNorm = nextWeek
-        ? new Date(
-            year,
-            nextWeek.weekStartDate.getMonth(),
-            nextWeek.weekStartDate.getDate()
-          ).getTime()
-        : Infinity;
-
-      if (todayNorm >= startNorm && todayNorm < nextNorm) {
-        return week.weekNumber;
-      }
-    }
-    return currentWeek;
-  })();
+  const currentWeekStart = findCurrentWeekStart(weeks);
+  const todaysWeek =
+    weeks.find((w) => w.weekStartDate === currentWeekStart)?.weekNumber ??
+    currentWeek;
 
   const [selectedWeek, setSelectedWeek] = useState(todaysWeek);
   const [prevOpen, setPrevOpen] = useState(false);
@@ -177,7 +151,7 @@ export default function DayPickerDrawer({
       <p className="mb-2 text-sm text-slate-500">Día</p>
       <div className="flex gap-2">
         {daysInSelectedWeek
-          .sort((a, b) => a.dayIndex - b.dayIndex)
+          .toSorted((a, b) => a.dayIndex - b.dayIndex)
           .map((day) => (
             <button
               key={day.id}
