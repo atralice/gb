@@ -7,6 +7,7 @@ type SetUpdate = {
   setId: string;
   reps?: number;
   weightKg?: number;
+  durationSeconds?: number;
 };
 
 export async function updateSets(updates: SetUpdate[]): Promise<void> {
@@ -17,6 +18,9 @@ export async function updateSets(updates: SetUpdate[]): Promise<void> {
         data: {
           ...(update.reps !== undefined && { reps: update.reps }),
           ...(update.weightKg !== undefined && { weightKg: update.weightKg }),
+          ...(update.durationSeconds !== undefined && {
+            durationSeconds: update.durationSeconds,
+          }),
         },
       })
     )

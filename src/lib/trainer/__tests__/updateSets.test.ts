@@ -104,4 +104,43 @@ describe("updateSets", () => {
     expect(updated?.reps).toBe(5); // unchanged
     expect(updated?.weightKg).toBe(65); // changed
   });
+
+  test("updates durationSeconds", async () => {
+    const trainer = await userFactory.create({ role: UserRole.trainer });
+    const athlete = await userFactory.create({ role: UserRole.athlete });
+    const exercise = await exerciseFactory.create();
+
+    const workoutDay = await workoutDayFactory.create({
+      trainer: { connect: { id: trainer.id } },
+      athlete: { connect: { id: athlete.id } },
+      weekNumber: 5,
+      dayIndex: 1,
+    });
+
+    const block = await workoutBlockFactory.create({
+      workoutDay: { connect: { id: workoutDay.id } },
+      order: 1,
+    });
+
+    const workoutExercise = await workoutBlockExerciseFactory.create({
+      exercise: { connect: { id: exercise.id } },
+      workoutBlock: { connect: { id: block.id } },
+      order: 1,
+    });
+
+    const set = await setFactory.create({
+      workoutBlockExercise: { connect: { id: workoutExercise.id } },
+      setIndex: 1,
+      reps: null,
+      weightKg: null,
+      durationSeconds: 40,
+    });
+
+    await updateSets([{ setId: set.id, durationSeconds: 50 }]);
+
+    const updated = await prisma.set.findUnique({ where: { id: set.id } });
+
+    expect(updated?.durationSeconds).toBe(50);
+    expect(updated?.reps).toBeNull();
+  });
 });
