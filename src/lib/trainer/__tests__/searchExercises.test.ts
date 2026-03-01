@@ -1,5 +1,7 @@
 import { describe, test, expect, beforeEach } from "bun:test";
 import { searchExercises } from "../searchExercises";
+import { createExercise } from "../actions/createExercise";
+import prisma from "@/lib/prisma";
 import exerciseFactory from "test/helpers/factories/exerciseFactory";
 import truncateDb from "test/helpers/test-helpers";
 
@@ -50,5 +52,21 @@ describe("searchExercises", () => {
     const results = await searchExercises("");
 
     expect(results).toHaveLength(20);
+  });
+});
+
+describe("createExercise", () => {
+  beforeEach(async () => {
+    await truncateDb();
+  });
+
+  test("creates exercise and returns id", async () => {
+    const result = await createExercise("Nuevo ejercicio");
+    expect(result.id).toBeDefined();
+
+    const found = await prisma.exercise.findUnique({
+      where: { id: result.id },
+    });
+    expect(found?.name).toBe("Nuevo ejercicio");
   });
 });
