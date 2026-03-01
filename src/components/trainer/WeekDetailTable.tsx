@@ -1,6 +1,14 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, {
+  createContext,
+  use,
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useTransition,
+} from "react";
 import type {
   AthleteWeekData,
   AthleteWeekDay,
@@ -17,15 +25,16 @@ import { removeExerciseFromBlock } from "@/lib/trainer/actions/removeExerciseFro
 import { replaceExercise } from "@/lib/trainer/actions/replaceExercise";
 import { reorderExercise } from "@/lib/trainer/actions/reorderExercise";
 import { createExercise } from "@/lib/trainer/actions/createExercise";
+import { copyGlobalExercise } from "@/lib/trainer/actions/copyGlobalExercise";
 import { searchExercises } from "@/lib/trainer/searchExercises";
 import SetInput from "./SetInput";
 import InlineNote from "./InlineNote";
 import ExerciseMenu from "./ExerciseMenu";
 import ExercisePicker from "./ExercisePicker";
 
-type Props = {
-  data: AthleteWeekData;
-};
+const DAY_LABEL_RE = /^d[iI]a\s+\d+$/i;
+
+// ── Types ──
 
 type EditedSet = {
   setId: string;
@@ -41,6 +50,39 @@ type ExerciseBlock = {
   exercises: AthleteWeekExercise[];
   maxSets: number;
 };
+
+// ── Context ──
+
+type WeekDetailContextValue = {
+  editedSets: Map<string, EditedSet>;
+  isPending: boolean;
+  onSetChange: (
+    setId: string,
+    field: "reps" | "weightKg" | "durationSeconds",
+    value: number | null
+  ) => void;
+  onSeriesChange: (blockId: string, newCount: number) => void;
+  onAddExercise: (blockId: string) => void;
+  onRemoveExercise: (blockExerciseId: string) => void;
+  onReplaceExercise: (blockExerciseId: string) => void;
+  onReorder: (exerciseId: string, targetId: string) => void;
+  onBlockCommentChange: (blockId: string, comment: string) => Promise<void>;
+  onExerciseCommentChange: (
+    blockExerciseId: string,
+    comment: string
+  ) => Promise<void>;
+};
+
+const WeekDetailContext = createContext<WeekDetailContextValue | null>(null);
+
+function useWeekDetail() {
+  const ctx = use(WeekDetailContext);
+  if (!ctx)
+    throw new Error("useWeekDetail must be used within WeekDetailTable");
+  return ctx;
+}
+
+// ── Helpers ──
 
 function groupExercisesIntoBlocks(
   exercises: AthleteWeekExercise[]
@@ -80,18 +122,32 @@ function getCurrentValue(
 }
 
 function exerciseHasWeight(exercise: AthleteWeekExercise): boolean {
-  return exercise.sets.some((s) => s.weightKg !== null);
+  return (
+    exercise.exerciseType === "weighted" || exercise.exerciseType === "timed"
+  );
 }
 
 function exerciseIsTimed(exercise: AthleteWeekExercise): boolean {
-  return exercise.sets.some((s) => s.durationSeconds !== null);
+  return exercise.exerciseType === "timed";
 }
 
-export default function WeekDetailTable({ data }: Props) {
+// ── Root component ──
+
+export default function WeekDetailTable({
+  data,
+  trainerId,
+}: {
+  data: AthleteWeekData;
+  trainerId: string;
+}) {
   const [editedSets, setEditedSets] = useState<Map<string, EditedSet>>(
-    new Map()
+    () => new Map()
   );
   const [isPending, startTransition] = useTransition();
+  const [saveStatus, setSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "timestamp"
+  >("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [pickerState, setPickerState] = useState<{
     open: boolean;
     mode: "add" | "replace";
@@ -99,23 +155,16 @@ export default function WeekDetailTable({ data }: Props) {
     blockExerciseId?: string;
   }>({ open: false, mode: "add" });
 
-  const hasChanges = editedSets.size > 0;
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const editedSetsRef = useRef(editedSets);
 
-  const handleInputChange = (
-    setId: string,
-    field: "reps" | "weightKg" | "durationSeconds",
-    value: number | null
-  ) => {
-    setEditedSets((prev) => {
-      const next = new Map(prev);
-      const existing = next.get(setId) ?? { setId };
-      next.set(setId, { ...existing, [field]: value ?? undefined });
-      return next;
-    });
-  };
+  useEffect(() => {
+    editedSetsRef.current = editedSets;
+  }, [editedSets]);
 
-  const handleSave = () => {
-    const updates = Array.from(editedSets.values()).filter(
+  const flushSave = useCallback(() => {
+    const current = editedSetsRef.current;
+    const updates = Array.from(current.values()).filter(
       (u) =>
         u.reps !== undefined ||
         u.weightKg !== undefined ||
@@ -124,22 +173,69 @@ export default function WeekDetailTable({ data }: Props) {
 
     if (updates.length === 0) return;
 
+    setSaveStatus("saving");
     startTransition(async () => {
       await updateSets(updates);
       setEditedSets(new Map());
+      setSaveStatus("saved");
+      setLastSavedAt(new Date());
+      setTimeout(() => setSaveStatus("timestamp"), 2000);
     });
-  };
+  }, [startTransition]);
 
-  const handleSeriesChange = (blockId: string, newCount: number) => {
-    if (newCount < 1) return;
-    startTransition(async () => {
-      await updateBlockSeriesCount(blockId, newCount);
-    });
-  };
+  // Flush on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      const current = editedSetsRef.current;
+      if (current.size > 0) {
+        const updates = Array.from(current.values()).filter(
+          (u) =>
+            u.reps !== undefined ||
+            u.weightKg !== undefined ||
+            u.durationSeconds !== undefined
+        );
+        if (updates.length > 0) {
+          void updateSets(updates);
+        }
+      }
+    };
+  }, []);
 
-  const handleAddExercise = (blockId: string) => {
+  const onSetChange = useCallback(
+    (
+      setId: string,
+      field: "reps" | "weightKg" | "durationSeconds",
+      value: number | null
+    ) => {
+      setEditedSets((prev) => {
+        const next = new Map(prev);
+        const existing = next.get(setId) ?? { setId };
+        next.set(setId, { ...existing, [field]: value ?? undefined });
+        return next;
+      });
+
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        flushSave();
+      }, 800);
+    },
+    [flushSave]
+  );
+
+  const onSeriesChange = useCallback(
+    (blockId: string, newCount: number) => {
+      if (newCount < 1) return;
+      startTransition(async () => {
+        await updateBlockSeriesCount(blockId, newCount);
+      });
+    },
+    [startTransition]
+  );
+
+  const onAddExercise = useCallback((blockId: string) => {
     setPickerState({ open: true, mode: "add", blockId });
-  };
+  }, []);
 
   const handlePickerSelect = (exerciseId: string) => {
     startTransition(async () => {
@@ -154,127 +250,107 @@ export default function WeekDetailTable({ data }: Props) {
     });
   };
 
-  const handleRemoveExercise = (blockExerciseId: string) => {
-    startTransition(async () => {
-      await removeExerciseFromBlock(blockExerciseId);
-    });
-  };
+  const onRemoveExercise = useCallback(
+    (blockExerciseId: string) => {
+      startTransition(async () => {
+        await removeExerciseFromBlock(blockExerciseId);
+      });
+    },
+    [startTransition]
+  );
 
-  const handleReplaceExercise = (blockExerciseId: string) => {
+  const onReplaceExercise = useCallback((blockExerciseId: string) => {
     setPickerState({ open: true, mode: "replace", blockExerciseId });
-  };
+  }, []);
 
-  const handleReorderExercise = (
-    exercise: AthleteWeekExercise,
-    block: ExerciseBlock,
-    exIndex: number,
-    direction: "up" | "down"
-  ) => {
-    const targetIndex = direction === "up" ? exIndex - 1 : exIndex + 1;
-    const target = block.exercises[targetIndex];
-    if (!target) return;
-    startTransition(async () => {
-      await reorderExercise(exercise.id, target.id);
-    });
-  };
+  const onReorder = useCallback(
+    (exerciseId: string, targetId: string) => {
+      startTransition(async () => {
+        await reorderExercise(exerciseId, targetId);
+      });
+    },
+    [startTransition]
+  );
 
-  const handleBlockCommentChange = async (blockId: string, comment: string) => {
-    await updateBlockComment(blockId, comment);
-  };
+  const onBlockCommentChange = useCallback(
+    async (blockId: string, comment: string) => {
+      await updateBlockComment(blockId, comment);
+    },
+    []
+  );
 
-  const handleExerciseCommentChange = async (
-    blockExerciseId: string,
-    comment: string
-  ) => {
-    await updateExerciseComment(blockExerciseId, comment);
+  const onExerciseCommentChange = useCallback(
+    async (blockExerciseId: string, comment: string) => {
+      await updateExerciseComment(blockExerciseId, comment);
+    },
+    []
+  );
+
+  const ctx: WeekDetailContextValue = {
+    editedSets,
+    isPending,
+    onSetChange,
+    onSeriesChange,
+    onAddExercise,
+    onRemoveExercise,
+    onReplaceExercise,
+    onReorder,
+    onBlockCommentChange,
+    onExerciseCommentChange,
   };
 
   return (
-    <div>
-      <div className="space-y-8">
-        {data.days.map((day) => (
-          <DayDetail
-            key={`day-${day.dayIndex}`}
-            day={day}
-            editedSets={editedSets}
-            onChange={handleInputChange}
-            onSeriesChange={handleSeriesChange}
-            onAddExercise={handleAddExercise}
-            onRemoveExercise={handleRemoveExercise}
-            onReplaceExercise={handleReplaceExercise}
-            onReorderExercise={handleReorderExercise}
-            onBlockCommentChange={handleBlockCommentChange}
-            onExerciseCommentChange={handleExerciseCommentChange}
-            isPending={isPending}
-          />
-        ))}
-      </div>
+    <WeekDetailContext value={ctx}>
+      <div>
+        {/* Auto-save status indicator — fixed height, always present */}
+        <div className="sticky top-0 z-20 flex justify-end px-4 py-2 pointer-events-none h-8">
+          <span className="text-xs flex items-center gap-1">
+            {saveStatus === "saving" && (
+              <>
+                <span className="inline-block w-3 h-3 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                <span className="text-slate-500">Guardando...</span>
+              </>
+            )}
+            {saveStatus === "saved" && (
+              <span className="text-green-600">&#10003; Guardado</span>
+            )}
+            {saveStatus === "timestamp" && lastSavedAt && (
+              <span className="text-slate-400">
+                Guardado{" "}
+                {lastSavedAt.toLocaleTimeString("es-AR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            )}
+          </span>
+        </div>
 
-      <div className="mt-4 flex justify-end">
-        <button
-          onClick={handleSave}
-          disabled={!hasChanges || isPending}
-          className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
-            hasChanges && !isPending
-              ? "bg-slate-800 text-white hover:bg-slate-700"
-              : "bg-slate-200 text-slate-400 cursor-not-allowed"
-          }`}
-        >
-          {isPending ? "Guardando..." : "Guardar cambios"}
-        </button>
-      </div>
+        <div className="space-y-8">
+          {data.days.map((day) => (
+            <DayDetail key={`day-${day.dayIndex}`} day={day} />
+          ))}
+        </div>
 
-      <ExercisePicker
-        open={pickerState.open}
-        onClose={() => setPickerState({ open: false, mode: "add" })}
-        onSelect={handlePickerSelect}
-        searchAction={searchExercises}
-        createAction={createExercise}
-      />
-    </div>
+        <ExercisePicker
+          open={pickerState.open}
+          onClose={() => setPickerState({ open: false, mode: "add" })}
+          onSelect={handlePickerSelect}
+          searchAction={searchExercises}
+          createAction={createExercise}
+          copyAction={copyGlobalExercise}
+          trainerId={trainerId}
+        />
+      </div>
+    </WeekDetailContext>
   );
 }
 
-function DayDetail({
-  day,
-  editedSets,
-  onChange,
-  onSeriesChange,
-  onAddExercise,
-  onRemoveExercise,
-  onReplaceExercise,
-  onReorderExercise,
-  onBlockCommentChange,
-  onExerciseCommentChange,
-  isPending,
-}: {
-  day: AthleteWeekDay;
-  editedSets: Map<string, EditedSet>;
-  onChange: (
-    setId: string,
-    field: "reps" | "weightKg" | "durationSeconds",
-    value: number | null
-  ) => void;
-  onSeriesChange: (blockId: string, newCount: number) => void;
-  onAddExercise: (blockId: string) => void;
-  onRemoveExercise: (blockExerciseId: string) => void;
-  onReplaceExercise: (blockExerciseId: string) => void;
-  onReorderExercise: (
-    exercise: AthleteWeekExercise,
-    block: ExerciseBlock,
-    exIndex: number,
-    direction: "up" | "down"
-  ) => void;
-  onBlockCommentChange: (blockId: string, comment: string) => Promise<void>;
-  onExerciseCommentChange: (
-    blockExerciseId: string,
-    comment: string
-  ) => Promise<void>;
-  isPending: boolean;
-}) {
+// ── DayDetail ──
+
+function DayDetail({ day }: { day: AthleteWeekDay }) {
   const blocks = groupExercisesIntoBlocks(day.exercises);
 
-  // Determine the global max series count across all blocks for column headers
   const globalMaxSets = blocks.reduce(
     (max, block) => Math.max(max, block.maxSets),
     0
@@ -283,10 +359,10 @@ function DayDetail({
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       {/* Day header */}
-      <div className="px-4 py-3 border-b border-slate-200">
+      <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
         <h3 className="text-sm font-medium text-slate-900">
           Dia {day.dayIndex}
-          {day.label && !/^d[iI]a\s+\d+$/i.test(day.label) && (
+          {day.label && !DAY_LABEL_RE.test(day.label) && (
             <span className="ml-2 font-normal text-slate-500">
               — {day.label}
             </span>
@@ -302,23 +378,23 @@ function DayDetail({
       {/* Scrollable table */}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="sticky left-0 z-10 bg-slate-50 text-left px-3 py-2 text-xs font-medium text-slate-500 w-16 min-w-[64px]">
+          <thead>
+            <tr className="border-b border-slate-200">
+              <th className="sticky left-0 z-10 bg-white text-left px-3 py-2 text-xs font-medium text-slate-400 w-16 min-w-[64px]">
                 Bloque
               </th>
-              <th className="sticky left-16 z-10 bg-slate-50 text-left px-3 py-2 text-xs font-medium text-slate-500 min-w-[140px]">
+              <th className="sticky left-16 z-10 bg-white text-left px-3 py-2 text-xs font-medium text-slate-400 min-w-[140px]">
                 Ejercicio
               </th>
               {Array.from({ length: globalMaxSets }, (_, i) => (
                 <th
                   key={`serie-${i}`}
-                  className="text-center px-3 py-2 text-xs font-medium text-slate-500 min-w-[80px]"
+                  className="text-center px-3 py-2 text-xs font-medium text-slate-400 min-w-[80px]"
                 >
                   Serie {i + 1}
                 </th>
               ))}
-              <th className="px-3 py-2 text-xs font-medium text-slate-500 w-20 min-w-[80px]" />
+              <th className="px-3 py-2 text-xs font-medium text-slate-400 w-20 min-w-[80px]" />
             </tr>
           </thead>
           <tbody>
@@ -328,16 +404,6 @@ function DayDetail({
                 block={block}
                 blockIndex={blockIndex}
                 globalMaxSets={globalMaxSets}
-                editedSets={editedSets}
-                onChange={onChange}
-                onSeriesChange={onSeriesChange}
-                onAddExercise={onAddExercise}
-                onRemoveExercise={onRemoveExercise}
-                onReplaceExercise={onReplaceExercise}
-                onReorderExercise={onReorderExercise}
-                onBlockCommentChange={onBlockCommentChange}
-                onExerciseCommentChange={onExerciseCommentChange}
-                isPending={isPending}
               />
             ))}
           </tbody>
@@ -347,49 +413,34 @@ function DayDetail({
   );
 }
 
+// ── BlockRows ──
+
 function BlockRows({
   block,
   blockIndex,
   globalMaxSets,
-  editedSets,
-  onChange,
-  onSeriesChange,
-  onAddExercise,
-  onRemoveExercise,
-  onReplaceExercise,
-  onReorderExercise,
-  onBlockCommentChange,
-  onExerciseCommentChange,
-  isPending,
 }: {
   block: ExerciseBlock;
   blockIndex: number;
   globalMaxSets: number;
-  editedSets: Map<string, EditedSet>;
-  onChange: (
-    setId: string,
-    field: "reps" | "weightKg" | "durationSeconds",
-    value: number | null
-  ) => void;
-  onSeriesChange: (blockId: string, newCount: number) => void;
-  onAddExercise: (blockId: string) => void;
-  onRemoveExercise: (blockExerciseId: string) => void;
-  onReplaceExercise: (blockExerciseId: string) => void;
-  onReorderExercise: (
-    exercise: AthleteWeekExercise,
-    block: ExerciseBlock,
-    exIndex: number,
-    direction: "up" | "down"
-  ) => void;
-  onBlockCommentChange: (blockId: string, comment: string) => Promise<void>;
-  onExerciseCommentChange: (
-    blockExerciseId: string,
-    comment: string
-  ) => Promise<void>;
-  isPending: boolean;
 }) {
+  const {
+    editedSets,
+    isPending,
+    onSetChange,
+    onSeriesChange,
+    onAddExercise,
+    onRemoveExercise,
+    onReplaceExercise,
+    onReorder,
+    onBlockCommentChange,
+    onExerciseCommentChange,
+  } = useWeekDetail();
+
   const isLastExercise = (exIndex: number) =>
     exIndex === block.exercises.length - 1;
+
+  const rowBg = blockIndex % 2 === 0 ? "bg-white" : "bg-slate-50";
 
   return (
     <>
@@ -397,13 +448,15 @@ function BlockRows({
         const combinedLabel = `${exercise.blockLabel}${exercise.exerciseOrder}`;
         const hasWeight = exerciseHasWeight(exercise);
         const isTimed = exerciseIsTimed(exercise);
+        const canMoveUp = exIndex > 0;
+        const canMoveDown = exIndex < block.exercises.length - 1;
 
         return (
           <React.Fragment key={exercise.id}>
             {/* Block comment row — only before first exercise */}
             {exIndex === 0 && (
-              <tr className="border-b border-slate-100">
-                <td className="sticky left-0 z-10 bg-white px-3 py-1" />
+              <tr className={rowBg}>
+                <td className={`sticky left-0 z-10 ${rowBg} px-3 py-1`} />
                 <td colSpan={globalMaxSets + 2} className="px-3 py-1">
                   <InlineNote
                     value={block.blockComment}
@@ -416,36 +469,54 @@ function BlockRows({
 
             {/* Exercise row */}
             <tr
-              className={`border-b border-slate-100 last:border-0 ${
+              className={`${rowBg} ${
                 blockIndex > 0 && exIndex === 0
-                  ? "border-t-2 border-t-slate-200"
+                  ? "border-t border-slate-200"
                   : ""
               }`}
             >
               {/* Bloque column */}
-              <td className="sticky left-0 z-10 bg-white px-3 py-2 text-xs font-medium text-slate-500 w-16 align-top">
+              <td
+                className={`sticky left-0 z-10 ${rowBg} px-3 py-2 text-xs font-medium text-slate-900 w-16 align-top`}
+              >
                 {combinedLabel}
               </td>
 
               {/* Ejercicio column */}
-              <td className="sticky left-16 z-10 bg-white px-3 py-2 text-sm text-slate-700 min-w-[140px] align-top">
+              <td
+                className={`sticky left-16 z-10 ${rowBg} px-3 py-2 text-sm text-slate-900 min-w-[140px] align-top`}
+              >
                 <div className="flex items-center gap-1">
+                  {(canMoveUp || canMoveDown) && (
+                    <span className="flex flex-col mr-0.5">
+                      <button
+                        onClick={() => {
+                          const target = block.exercises[exIndex - 1];
+                          if (target) onReorder(exercise.id, target.id);
+                        }}
+                        disabled={!canMoveUp}
+                        className="text-[10px] leading-none text-slate-300 hover:text-slate-600 disabled:opacity-0 transition-colors"
+                        aria-label="Mover arriba"
+                      >
+                        &#9650;
+                      </button>
+                      <button
+                        onClick={() => {
+                          const target = block.exercises[exIndex + 1];
+                          if (target) onReorder(exercise.id, target.id);
+                        }}
+                        disabled={!canMoveDown}
+                        className="text-[10px] leading-none text-slate-300 hover:text-slate-600 disabled:opacity-0 transition-colors"
+                        aria-label="Mover abajo"
+                      >
+                        &#9660;
+                      </button>
+                    </span>
+                  )}
                   <span>{exercise.exerciseName}</span>
                   <ExerciseMenu
                     onReplace={() => onReplaceExercise(exercise.id)}
                     onRemove={() => onRemoveExercise(exercise.id)}
-                    onMoveUp={
-                      exIndex > 0
-                        ? () =>
-                            onReorderExercise(exercise, block, exIndex, "up")
-                        : undefined
-                    }
-                    onMoveDown={
-                      exIndex < block.exercises.length - 1
-                        ? () =>
-                            onReorderExercise(exercise, block, exIndex, "down")
-                        : undefined
-                    }
                   />
                 </div>
                 <InlineNote
@@ -475,7 +546,7 @@ function BlockRows({
                           step={2.5}
                           min={0}
                           max={500}
-                          onChange={(v) => onChange(set.id, "weightKg", v)}
+                          onChange={(v) => onSetChange(set.id, "weightKg", v)}
                         />
                       )}
                       {isTimed ? (
@@ -490,7 +561,7 @@ function BlockRows({
                           min={1}
                           max={600}
                           onChange={(v) =>
-                            onChange(set.id, "durationSeconds", v)
+                            onSetChange(set.id, "durationSeconds", v)
                           }
                         />
                       ) : (
@@ -500,7 +571,7 @@ function BlockRows({
                           step={1}
                           min={1}
                           max={100}
-                          onChange={(v) => onChange(set.id, "reps", v)}
+                          onChange={(v) => onSetChange(set.id, "reps", v)}
                         />
                       )}
                     </div>
@@ -537,8 +608,8 @@ function BlockRows({
 
             {/* "+ Ejercicio" button row — after last exercise in block */}
             {isLastExercise(exIndex) && (
-              <tr className="border-b border-slate-100">
-                <td className="sticky left-0 z-10 bg-white" />
+              <tr className={rowBg}>
+                <td className={`sticky left-0 z-10 ${rowBg}`} />
                 <td colSpan={globalMaxSets + 2} className="px-3 py-2">
                   <button
                     onClick={() => onAddExercise(block.blockId)}

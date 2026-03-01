@@ -45,7 +45,7 @@ export default async function WeekEditPage({ params }: Props) {
       }
     >
       <div className="p-4">
-        <WeekDetailTable data={weekData} />
+        <WeekDetailTable data={weekData} trainerId={user.id} />
       </div>
     </PageShell>
   );

@@ -68,12 +68,30 @@ export default function UserMenu({
           </div>
           <div className="p-2">
             {userRole === "trainer" && (
+              <>
+                <Link
+                  href="/trainer/athletes"
+                  className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Mis atletas
+                </Link>
+                <Link
+                  href="/trainer/exercises"
+                  className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Mis ejercicios
+                </Link>
+              </>
+            )}
+            {userRole === "admin" && (
               <Link
-                href="/trainer/athletes"
+                href="/admin/exercises"
                 className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
                 onClick={() => setIsOpen(false)}
               >
-                Mis atletas
+                Ejercicios
               </Link>
             )}
             {userRole === "athlete" && (
