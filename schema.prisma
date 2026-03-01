@@ -29,6 +29,9 @@ model User {
   trainerWorkoutDays WorkoutDay[] @relation("TrainerWorkoutDays")
   athleteWorkoutDays WorkoutDay[] @relation("AthleteWorkoutDays")
 
+  // Exercise library
+  ownedExercises Exercise[] @relation("OwnedExercises")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -47,17 +50,33 @@ model TrainerAthlete {
 
 // ---------- Exercise library ----------
 
+enum ExerciseType {
+  weighted    // shows kg + reps inputs
+  bodyweight  // shows reps only
+  timed       // shows seconds input (+ optional kg)
+}
+
 model Exercise {
-  id           String   @id @default(uuid())
-  name         String   @unique // e.g. "Sentadilla búlgara"
-  instructions String?  // markdown - form cues, can include links
-  videoUrl     String?  // YouTube/video link
-  tags         String[] @default([]) // e.g. ["fuerza", "piernas", "unilateral"]
+  id             String        @id @default(uuid())
+  name           String
+  exerciseType   ExerciseType  @default(weighted)
+  instructions   String?
+  videoUrl       String?
+  tags           String[]      @default([])
+
+  ownerId        String?
+  owner          User?         @relation("OwnedExercises", fields: [ownerId], references: [id])
+
+  globalSourceId String?
+  globalSource   Exercise?     @relation("ExerciseCopies", fields: [globalSourceId], references: [id])
+  copies         Exercise[]    @relation("ExerciseCopies")
 
   workoutBlockExercises WorkoutBlockExercise[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([name, ownerId])
 }
 
 // ---------- Workout structure ----------

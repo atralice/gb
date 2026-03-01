@@ -8,9 +8,12 @@ function buildAttributes(): Exercise {
   return {
     id: randomUUID(),
     name: "Sentadilla búlgara",
+    exerciseType: "weighted",
     instructions: null,
     videoUrl: null,
     tags: [],
+    ownerId: null,
+    globalSourceId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

@@ -237,11 +237,19 @@ async function seed() {
   ];
 
   for (const { name, tags, videoUrl } of exercises) {
-    const exercise = await prisma.exercise.upsert({
-      where: { name },
-      update: { tags, videoUrl },
-      create: { name, tags, videoUrl },
+    let exercise = await prisma.exercise.findFirst({
+      where: { name, ownerId: null },
     });
+    if (exercise) {
+      exercise = await prisma.exercise.update({
+        where: { id: exercise.id },
+        data: { tags, videoUrl },
+      });
+    } else {
+      exercise = await prisma.exercise.create({
+        data: { name, tags, videoUrl },
+      });
+    }
     exerciseMap.set(name, exercise);
   }
 
