@@ -7,6 +7,8 @@ type PageShellProps = {
   title: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
+  /** Offset sticky header below a persistent nav bar */
+  stickyTop?: string;
 };
 
 export default function PageShell({
@@ -14,10 +16,13 @@ export default function PageShell({
   title,
   actions,
   children,
+  stickyTop = "top-0",
 }: PageShellProps) {
   return (
     <main className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3">
+      <header
+        className={`sticky ${stickyTop} z-10 bg-white border-b border-slate-200 px-4 py-3`}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {backHref && (

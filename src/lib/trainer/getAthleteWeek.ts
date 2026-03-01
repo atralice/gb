@@ -19,6 +19,7 @@ export type AthleteWeekExercise = {
   id: string;
   exerciseId: string;
   exerciseName: string;
+  exerciseType: "weighted" | "bodyweight" | "timed";
   blockId: string;
   blockLabel: string;
   blockComment: string | null;
@@ -136,6 +137,7 @@ export const getAthleteWeek = cache(async function getAthleteWeek(
         id: ex.id,
         exerciseId: ex.exerciseId,
         exerciseName: ex.exercise.name,
+        exerciseType: ex.exercise.exerciseType,
         blockId: block.id,
         blockLabel: block.label ?? "",
         blockComment: block.comment,

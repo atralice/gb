@@ -44,7 +44,17 @@ export async function searchExercises(
     });
   }
 
-  return exercises.slice(0, 20).map((e) => ({
+  // Hide global exercises the trainer already copied
+  const ownedNames = new Set(
+    exercises
+      .filter((e) => e.ownerId === trainerId)
+      .map((e) => e.name.toLowerCase())
+  );
+  const filtered = exercises.filter(
+    (e) => e.ownerId !== null || !ownedNames.has(e.name.toLowerCase())
+  );
+
+  return filtered.slice(0, 20).map((e) => ({
     id: e.id,
     name: e.name,
     exerciseType: e.exerciseType,

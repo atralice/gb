@@ -34,12 +34,16 @@ export type OverviewDay = {
 
 export type AthleteOverviewData = {
   athlete: { id: string; name: string };
+  earliestWeekNumber: number;
   latestWeekNumber: number;
+  windowStart: number;
+  windowEnd: number;
   days: OverviewDay[];
 };
 
 export const getAthleteOverview = cache(async function getAthleteOverview(
-  athleteId: string
+  athleteId: string,
+  options?: { startWeek?: number; endWeek?: number }
 ): Promise<AthleteOverviewData | null> {
   const athlete = await prisma.user.findUnique({
     where: { id: athleteId },
@@ -48,8 +52,26 @@ export const getAthleteOverview = cache(async function getAthleteOverview(
 
   if (!athlete) return null;
 
-  const workoutDays = await prisma.workoutDay.findMany({
+  // Get the full week range for this athlete
+  const weekRange = await prisma.workoutDay.aggregate({
     where: { athleteId },
+    _min: { weekNumber: true },
+    _max: { weekNumber: true },
+  });
+
+  const earliestWeekNumber = weekRange._min.weekNumber ?? 1;
+  const latestWeekNumber = weekRange._max.weekNumber ?? 1;
+
+  // Default window: latest 4 weeks
+  const endWeek = options?.endWeek ?? latestWeekNumber;
+  const startWeek =
+    options?.startWeek ?? Math.max(earliestWeekNumber, endWeek - 3);
+
+  const workoutDays = await prisma.workoutDay.findMany({
+    where: {
+      athleteId,
+      weekNumber: { gte: startWeek, lte: endWeek },
+    },
     include: {
       blocks: {
         include: {
@@ -117,9 +139,6 @@ export const getAthleteOverview = cache(async function getAthleteOverview(
     });
   }
 
-  // Calculate latestWeekNumber
-  const latestWeekNumber = Math.max(...workoutDays.map((d) => d.weekNumber));
-
   // Build sorted days array
   const dayIndices = [...dayMap.keys()].sort((a, b) => a - b);
   const days: OverviewDay[] = dayIndices.reduce<OverviewDay[]>(
@@ -145,7 +164,10 @@ export const getAthleteOverview = cache(async function getAthleteOverview(
       id: athlete.id,
       name: athlete.name ?? athlete.email.split("@")[0] ?? "Unknown",
     },
+    earliestWeekNumber,
     latestWeekNumber,
+    windowStart: startWeek,
+    windowEnd: endWeek,
     days,
   };
 });

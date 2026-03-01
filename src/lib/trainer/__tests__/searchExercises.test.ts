@@ -55,7 +55,7 @@ describe("searchExercises", () => {
     expect(results).toHaveLength(20);
   });
 
-  test("returns trainer's own exercises first, then global matches", async () => {
+  test("hides global exercise when trainer already has a copy", async () => {
     const trainer = await userFactory.create({ role: "trainer" });
     await exerciseFactory.create({
       name: "Squat",
@@ -65,11 +65,19 @@ describe("searchExercises", () => {
 
     const results = await searchExercises("squat", trainer.id);
 
-    expect(results).toHaveLength(2);
+    expect(results).toHaveLength(1);
     expect(results[0]?.name).toBe("Squat");
     expect(results[0]?.isGlobal).toBe(false);
-    expect(results[1]?.name).toBe("Squat");
-    expect(results[1]?.isGlobal).toBe(true);
+  });
+
+  test("shows global exercise when trainer has no copy", async () => {
+    const trainer = await userFactory.create({ role: "trainer" });
+    await exerciseFactory.create({ name: "Squat" }); // global only
+
+    const results = await searchExercises("squat", trainer.id);
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.isGlobal).toBe(true);
   });
 
   test("without trainerId returns only global exercises", async () => {

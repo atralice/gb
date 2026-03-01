@@ -16,7 +16,6 @@ export default async function WeekEditPage({ params }: Props) {
     params,
   ]);
   if (!user) redirect("/login");
-  if (user.role !== "trainer") redirect("/");
 
   const weekNumber = parseInt(weekStr, 10);
   if (isNaN(weekNumber)) notFound();
@@ -27,6 +26,7 @@ export default async function WeekEditPage({ params }: Props) {
   return (
     <PageShell
       backHref={`/trainer/athletes/${athleteId}`}
+      stickyTop="top-12"
       title={
         <>
           {weekData.athlete.name} — Semana {weekNumber}

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import getUser from "@/lib/auth/getUser";
 import { getTrainerExercises } from "@/lib/trainer/getTrainerExercises";
 import ExerciseLibrary from "@/components/trainer/ExerciseLibrary";
-import PageShell from "@/components/ui/PageShell";
 
 import type { ExerciseType } from "@prisma/client";
 
@@ -24,7 +23,6 @@ type Props = {
 export default async function TrainerExercisesPage({ searchParams }: Props) {
   const [user, sp] = await Promise.all([getUser(), searchParams]);
   if (!user) redirect("/login");
-  if (user.role !== "trainer") redirect("/");
 
   const exercises = await getTrainerExercises(user.id, {
     search: sp.search,
@@ -32,8 +30,8 @@ export default async function TrainerExercisesPage({ searchParams }: Props) {
   });
 
   return (
-    <PageShell backHref="/trainer/athletes" title="Mis ejercicios">
+    <div className="min-h-screen bg-slate-50">
       <ExerciseLibrary exercises={exercises} />
-    </PageShell>
+    </div>
   );
 }
