@@ -36,7 +36,7 @@ export default function CreateWeekDialog({
         targetWeek,
         mode === "empty"
       );
-      router.push(`/trainer/athletes/${athleteId}?week=${targetWeek}`);
+      router.push(`/trainer/athletes/${athleteId}/week/${targetWeek}`);
       onClose();
     });
   };
