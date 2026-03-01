@@ -31,6 +31,7 @@ export type AthleteWeekDay = {
   id: string;
   dayIndex: number;
   label: string | null;
+  notes: string | null;
   exercises: AthleteWeekExercise[];
 };
 
@@ -129,6 +130,7 @@ export const getAthleteWeek = cache(async function getAthleteWeek(
     id: day.id,
     dayIndex: day.dayIndex,
     label: day.label,
+    notes: day.notes,
     exercises: day.blocks.flatMap((block) =>
       block.exercises.map((ex) => ({
         id: ex.id,

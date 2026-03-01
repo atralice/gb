@@ -175,9 +175,11 @@ function DayDetail({
       {/* Day header */}
       <div className="px-4 py-3 border-b border-slate-200">
         <h3 className="text-sm font-medium text-slate-900">
-          D&Iacute;A {day.dayIndex}
-          {day.label && (
-            <span className="ml-2 font-normal text-slate-500">{day.label}</span>
+          Día {day.dayIndex}
+          {day.label && !/^d[ií]a\s+\d+$/i.test(day.label) && (
+            <span className="ml-2 font-normal text-slate-500">
+              — {day.label}
+            </span>
           )}
         </h3>
       </div>
