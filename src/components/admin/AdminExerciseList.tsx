@@ -113,7 +113,10 @@ export default function AdminExerciseList({ exercises }: Props) {
 
   const handleCreate = () => {
     startTransition(async () => {
-      await createExercise(newForm.name, newForm.exerciseType);
+      await createExercise({
+        name: newForm.name,
+        exerciseType: newForm.exerciseType,
+      });
       setCreating(false);
       setNewForm({
         name: "",

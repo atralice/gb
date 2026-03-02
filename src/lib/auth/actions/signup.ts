@@ -4,7 +4,11 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { hashPassword } from "../password";
 import { createSessionCookie } from "../cookies";
-import { serverActionError, ServerActionError } from "@/lib/serverActions";
+import {
+  serverActionError,
+  toFieldErrors,
+} from "@/lib/serverActions/serverActionError";
+import type { ServerActionError } from "@/lib/serverActions/serverActionError";
 import { redirect } from "next/navigation";
 
 const signupSchema = z.object({
@@ -17,18 +21,6 @@ const signupSchema = z.object({
 });
 
 type SignupResult = { success: true } | ServerActionError;
-
-function toFieldErrors(
-  errors: z.ZodFlattenedError<z.infer<typeof signupSchema>>["fieldErrors"]
-): Record<string, string[]> {
-  const result: Record<string, string[]> = {};
-  for (const [key, value] of Object.entries(errors)) {
-    if (value && value.length > 0) {
-      result[key] = value;
-    }
-  }
-  return result;
-}
 
 export async function signup(formData: FormData): Promise<SignupResult> {
   const parsed = signupSchema.safeParse({

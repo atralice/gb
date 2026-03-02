@@ -8,6 +8,18 @@ export type ServerActionError = {
   readonly error: ServerActionFlattenedError;
 };
 
+export function toFieldErrors(
+  errors: Record<string, string[] | undefined>
+): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(errors)) {
+    if (value && value.length > 0) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 export function serverActionError({
   fieldErrors,
   formErrors,

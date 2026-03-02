@@ -53,7 +53,13 @@ describe("copyWeek", () => {
       completed: true,
     });
 
-    const result = await copyWeek(athlete.id, trainer.id, 5, 6, false);
+    const result = await copyWeek({
+      athleteId: athlete.id,
+      trainerId: trainer.id,
+      sourceWeek: 5,
+      targetWeek: 6,
+      empty: false,
+    });
 
     expect(result.weekNumber).toBe(6);
 
@@ -109,7 +115,13 @@ describe("copyWeek", () => {
       order: 1,
     });
 
-    const result = await copyWeek(athlete.id, trainer.id, 5, 6, true);
+    const result = await copyWeek({
+      athleteId: athlete.id,
+      trainerId: trainer.id,
+      sourceWeek: 5,
+      targetWeek: 6,
+      empty: true,
+    });
 
     expect(result.weekNumber).toBe(6);
 

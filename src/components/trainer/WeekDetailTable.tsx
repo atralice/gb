@@ -694,43 +694,44 @@ function BlockRows({
                             min={input.min}
                             max={input.max}
                             onChange={(v) => {
-                              onSetChange(set.id, input.field, v);
-                              // Pin resolved value on sibling null sets so they
-                              // don't inherit the new persisted value after save
-                              if (
-                                set[input.field] === null ||
-                                set[input.field] === undefined
+                              // Pin later sibling null sets to their current
+                              // resolved values BEFORE applying the edit, so
+                              // they don't inherit the new persisted value
+                              // after save + refetch.
+                              for (
+                                let j = i + 1;
+                                j < exercise.sets.length;
+                                j++
                               ) {
-                                for (let j = 0; j < exercise.sets.length; j++) {
-                                  const sibling = exercise.sets[j];
-                                  if (!sibling || j === i) continue;
-                                  if (
-                                    sibling[input.field] === null ||
-                                    sibling[input.field] === undefined
-                                  ) {
-                                    const siblingEdited = editedSets.get(
-                                      sibling.id
-                                    );
-                                    if (
-                                      !siblingEdited ||
-                                      siblingEdited[input.field] === undefined
-                                    ) {
-                                      const siblingResolved = resolveValue(
-                                        exercise.sets,
-                                        j,
-                                        input.field,
-                                        editedSets,
-                                        input.defaultValue
-                                      );
-                                      onSetChange(
-                                        sibling.id,
-                                        input.field,
-                                        siblingResolved
-                                      );
-                                    }
-                                  }
-                                }
+                                const sibling = exercise.sets[j];
+                                if (!sibling) continue;
+                                if (
+                                  sibling[input.field] !== null &&
+                                  sibling[input.field] !== undefined
+                                )
+                                  continue;
+                                const siblingEdited = editedSets.get(
+                                  sibling.id
+                                );
+                                if (
+                                  siblingEdited &&
+                                  siblingEdited[input.field] !== undefined
+                                )
+                                  continue;
+                                const siblingResolved = resolveValue(
+                                  exercise.sets,
+                                  j,
+                                  input.field,
+                                  editedSets,
+                                  input.defaultValue
+                                );
+                                onSetChange(
+                                  sibling.id,
+                                  input.field,
+                                  siblingResolved
+                                );
                               }
+                              onSetChange(set.id, input.field, v);
                             }}
                             onDoubleClick={() => {
                               const allValues: Record<string, number> = {};

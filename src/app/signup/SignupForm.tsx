@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 import { signup } from "@/lib/auth/actions/signup";
-import { isServerActionError, ServerActionError } from "@/lib/serverActions";
+import { isServerActionError } from "@/lib/serverActions/isServerActionError";
+import type { ServerActionError } from "@/lib/serverActions/serverActionError";
 import Spinner from "@/components/ui/Spinner";
 
 type FormState = ServerActionError | null;

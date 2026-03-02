@@ -16,11 +16,11 @@ type Props = {
   onClose: () => void;
   onSelect: (exerciseId: string) => void;
   searchAction: (query: string, trainerId?: string) => Promise<Exercise[]>;
-  createAction: (
-    name: string,
-    exerciseType: ExerciseType,
-    ownerId?: string
-  ) => Promise<{ id: string }>;
+  createAction: (params: {
+    name: string;
+    exerciseType?: ExerciseType;
+    ownerId?: string;
+  }) => Promise<{ id: string }>;
   copyAction: (
     globalExerciseId: string,
     trainerId: string
@@ -69,7 +69,11 @@ function ExercisePickerContent({
   const handleCreate = (exerciseType: ExerciseType) => {
     if (!creatingName) return;
     startTransition(async () => {
-      const created = await createAction(creatingName, exerciseType, trainerId);
+      const created = await createAction({
+        name: creatingName,
+        exerciseType,
+        ownerId: trainerId,
+      });
       onSelect(created.id);
       onClose();
     });

@@ -1,6 +1,5 @@
 import { cache } from "react";
 import prisma from "../prisma";
-import type { Prisma } from "@prisma/client";
 
 export const getWorkoutDay = cache(async function getWorkoutDay(
   athleteId: string,
@@ -45,6 +44,4 @@ export const getWorkoutDay = cache(async function getWorkoutDay(
   return workoutDay;
 });
 
-export type WorkoutDayWithBlocks = Prisma.PromiseReturnType<
-  typeof getWorkoutDay
->;
+export type WorkoutDayWithBlocks = Awaited<ReturnType<typeof getWorkoutDay>>;

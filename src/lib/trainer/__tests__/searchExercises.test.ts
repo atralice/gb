@@ -119,7 +119,7 @@ describe("createExercise", () => {
   });
 
   test("creates exercise and returns id", async () => {
-    const result = await createExercise("Nuevo ejercicio");
+    const result = await createExercise({ name: "Nuevo ejercicio" });
     expect(result.id).toBeDefined();
 
     const found = await prisma.exercise.findUnique({
@@ -130,7 +130,11 @@ describe("createExercise", () => {
 
   test("creates exercise with ownerId", async () => {
     const trainer = await userFactory.create({ role: "trainer" });
-    const result = await createExercise("My Exercise", "weighted", trainer.id);
+    const result = await createExercise({
+      name: "My Exercise",
+      exerciseType: "weighted",
+      ownerId: trainer.id,
+    });
 
     const found = await prisma.exercise.findUnique({
       where: { id: result.id },
@@ -139,7 +143,10 @@ describe("createExercise", () => {
   });
 
   test("creates global exercise when no ownerId", async () => {
-    const result = await createExercise("Global Exercise", "weighted");
+    const result = await createExercise({
+      name: "Global Exercise",
+      exerciseType: "weighted",
+    });
 
     const found = await prisma.exercise.findUnique({
       where: { id: result.id },

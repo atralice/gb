@@ -15,26 +15,27 @@ import { captureException } from "./captureException";
  * @param fn A function that may throw an error, can be sync or async
  * @param errorsToHandle Array of error classes to handle. If undefined, catches all errors.
  */
+type ErrorConstructor = new (...args: never[]) => Error;
+
 function catchErrors<T>(
   fn: () => T,
-  errorsToHandle?: (new (...args: any[]) => Error)[]
-): T;
+  errorsToHandle?: ErrorConstructor[]
+): T | undefined;
 function catchErrors<T>(
   fn: () => Promise<T>,
-  errorsToHandle?: (new (...args: any[]) => Error)[]
-): Promise<T>;
+  errorsToHandle?: ErrorConstructor[]
+): Promise<T | undefined>;
 function catchErrors<T>(
   fn: () => T | Promise<T>,
-  errorsToHandle?: (new (...args: any[]) => Error)[]
-): T | Promise<T> {
-  const handleError = (error: unknown): T => {
+  errorsToHandle?: ErrorConstructor[]
+): T | undefined | Promise<T | undefined> {
+  const handleError = (error: unknown): undefined => {
     if (
       !errorsToHandle ||
       errorsToHandle.some((ErrorClass) => error instanceof ErrorClass)
     ) {
       captureException(error);
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-      return undefined as T;
+      return undefined;
     }
     throw error;
   };

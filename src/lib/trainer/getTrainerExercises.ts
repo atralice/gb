@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import type { ExerciseType } from "@prisma/client";
+import type { ExerciseType, Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 
 export type TrainerExercise = {
@@ -22,7 +22,7 @@ export const getTrainerExercises = cache(async function getTrainerExercises(
   trainerId: string,
   filters?: Filters
 ): Promise<TrainerExercise[]> {
-  const where: Record<string, unknown> = { ownerId: trainerId };
+  const where: Prisma.ExerciseWhereInput = { ownerId: trainerId };
 
   if (filters?.search) {
     where.name = { contains: filters.search, mode: "insensitive" };

@@ -47,8 +47,9 @@ async function importKey(hexSecret: string): Promise<CryptoKey> {
     );
   }
   const keyBuffer = hexToBuffer(hexSecret);
+  // Uint8Array.buffer is ArrayBufferLike but importKey needs ArrayBuffer — safe cast since we created it
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-  const buffer = new Uint8Array(keyBuffer).buffer as ArrayBuffer;
+  const buffer = keyBuffer.buffer as ArrayBuffer;
   return crypto.subtle.importKey("raw", buffer, { name: "AES-GCM" }, false, [
     "decrypt",
   ]);

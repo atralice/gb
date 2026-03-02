@@ -29,13 +29,13 @@ export default function CreateWeekDialog({
 
   const handleCreate = () => {
     startTransition(async () => {
-      await copyWeek(
+      await copyWeek({
         athleteId,
         trainerId,
         sourceWeek,
         targetWeek,
-        mode === "empty"
-      );
+        empty: mode === "empty",
+      });
       router.push(`/trainer/athletes/${athleteId}/week/${targetWeek}`);
       onClose();
     });

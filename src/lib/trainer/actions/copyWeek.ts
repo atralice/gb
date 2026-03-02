@@ -3,13 +3,19 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-export async function copyWeek(
-  athleteId: string,
-  trainerId: string,
-  sourceWeek: number,
-  targetWeek: number,
-  empty: boolean
-): Promise<{ weekNumber: number }> {
+export async function copyWeek({
+  athleteId,
+  trainerId,
+  sourceWeek,
+  targetWeek,
+  empty,
+}: {
+  athleteId: string;
+  trainerId: string;
+  sourceWeek: number;
+  targetWeek: number;
+  empty: boolean;
+}): Promise<{ weekNumber: number }> {
   const sourceDays = await prisma.workoutDay.findMany({
     where: { athleteId, weekNumber: sourceWeek },
     include: {

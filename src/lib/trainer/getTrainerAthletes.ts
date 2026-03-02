@@ -25,6 +25,7 @@ function getNextWeekStart(): Date {
   return current;
 }
 
+const MS_PER_DAY = 86_400_000;
 const INACTIVE_DAYS_THRESHOLD = 4;
 
 export const getTrainerAthletes = cache(async function getTrainerAthletes(
@@ -93,7 +94,7 @@ export const getTrainerAthletes = cache(async function getTrainerAthletes(
     // Inactive check
     if (lastActivity) {
       const daysSinceActivity = Math.floor(
-        (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60 * 24)
+        (Date.now() - lastActivity.getTime()) / MS_PER_DAY
       );
       if (daysSinceActivity >= INACTIVE_DAYS_THRESHOLD) {
         needsAttention = true;
