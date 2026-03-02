@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useState, useRef } from "react";
 
 type Props = {
   value: string | null;
-  onSave: (value: string) => Promise<void>;
+  onSave: (value: string) => void;
   placeholder?: string;
 };
 
@@ -15,7 +15,6 @@ export default function InlineNote({
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
-  const [isPending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleOpen = () => {
@@ -27,9 +26,7 @@ export default function InlineNote({
   const handleSave = () => {
     setEditing(false);
     if (draft !== (value ?? "")) {
-      startTransition(async () => {
-        await onSave(draft);
-      });
+      onSave(draft);
     }
   };
 
@@ -67,7 +64,6 @@ export default function InlineNote({
       onChange={(e) => setDraft(e.target.value)}
       onBlur={handleSave}
       onKeyDown={handleKeyDown}
-      disabled={isPending}
       className="w-full text-xs px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-slate-400"
     />
   );

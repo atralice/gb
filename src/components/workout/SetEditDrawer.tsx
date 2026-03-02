@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Drawer, DrawerTitle } from "@/components/ui/Drawer";
+import NumberStepper from "@/components/ui/NumberStepper";
 import Spinner from "@/components/ui/Spinner";
 import type { Set as PrismaSet } from "@prisma/client";
 
@@ -21,6 +22,7 @@ type SetForEdit = Pick<
 type SetEditDrawerProps = {
   set: SetForEdit | null;
   exerciseName: string;
+  exerciseType: "weighted" | "bodyweight" | "timed";
   totalSets: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,12 +35,14 @@ type SetEditDrawerProps = {
 function SetEditForm({
   set,
   exerciseName,
+  exerciseType,
   totalSets,
   onOpenChange,
   onSave,
 }: {
   set: SetForEdit;
   exerciseName: string;
+  exerciseType: "weighted" | "bodyweight" | "timed";
   totalSets: number;
   onOpenChange: (open: boolean) => void;
   onSave: SetEditDrawerProps["onSave"];
@@ -53,8 +57,8 @@ function SetEditForm({
   );
   const [isSaving, setIsSaving] = useState(false);
 
-  const isTimeBased = set.durationSeconds != null && set.durationSeconds > 0;
-  const hasWeight = set.weightKg != null && set.weightKg > 0;
+  const isTimeBased = exerciseType === "timed";
+  const hasWeight = exerciseType === "weighted";
 
   // Format prescription text
   const getPrescriptionText = () => {
@@ -74,22 +78,14 @@ function SetEditForm({
     setIsSaving(true);
     try {
       await onSave(set.id, {
-        reps: !isTimeBased ? reps : undefined,
-        weightKg: hasWeight ? weight : undefined,
-        durationSeconds: isTimeBased ? duration : undefined,
+        reps: exerciseType !== "timed" ? reps : undefined,
+        weightKg: exerciseType === "weighted" ? weight : undefined,
+        durationSeconds: exerciseType === "timed" ? duration : undefined,
       });
       onOpenChange(false);
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const adjustValue = (
-    setter: React.Dispatch<React.SetStateAction<number>>,
-    delta: number,
-    min: number = 0
-  ) => {
-    setter((prev) => Math.max(min, prev + delta));
   };
 
   return (
@@ -109,123 +105,37 @@ function SetEditForm({
       </div>
 
       <div className="space-y-6">
-        {/* Reps or Duration */}
         {isTimeBased ? (
-          <div>
-            <label className="mb-3 block text-sm font-medium text-slate-600">
-              Duración (segundos)
-            </label>
-            <div className="flex items-center justify-center gap-4">
-              <button
-                onClick={() => adjustValue(setDuration, -5, 5)}
-                disabled={isSaving}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-600 transition-colors hover:bg-slate-200 active:bg-slate-300 disabled:opacity-50"
-              >
-                −
-              </button>
-              <input
-                type="number"
-                inputMode="numeric"
-                min="1"
-                value={duration}
-                disabled={isSaving}
-                onChange={(e) =>
-                  setDuration(Math.max(1, parseInt(e.target.value) || 1))
-                }
-                className="w-24 rounded-xl border border-slate-200 px-4 py-3 text-center text-2xl font-bold focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50"
-              />
-              <button
-                onClick={() => adjustValue(setDuration, 5)}
-                disabled={isSaving}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-600 transition-colors hover:bg-slate-200 active:bg-slate-300 disabled:opacity-50"
-              >
-                +
-              </button>
-            </div>
-          </div>
+          <NumberStepper
+            label="Duración (segundos)"
+            value={duration}
+            step={5}
+            min={1}
+            disabled={isSaving}
+            onChange={setDuration}
+          />
         ) : (
-          <div>
-            <label className="mb-3 block text-sm font-medium text-slate-600">
-              Repeticiones {set.repsPerSide && "(por lado)"}
-            </label>
-            <div className="flex items-center justify-center gap-4">
-              <button
-                onClick={() => adjustValue(setReps, -1, 1)}
-                disabled={isSaving}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-600 transition-colors hover:bg-slate-200 active:bg-slate-300 disabled:opacity-50"
-              >
-                −
-              </button>
-              <input
-                type="number"
-                inputMode="numeric"
-                min="1"
-                value={reps}
-                disabled={isSaving}
-                onChange={(e) =>
-                  setReps(Math.max(1, parseInt(e.target.value) || 1))
-                }
-                className="w-24 rounded-xl border border-slate-200 px-4 py-3 text-center text-2xl font-bold focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50"
-              />
-              <button
-                onClick={() => adjustValue(setReps, 1)}
-                disabled={isSaving}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-600 transition-colors hover:bg-slate-200 active:bg-slate-300 disabled:opacity-50"
-              >
-                +
-              </button>
-            </div>
-          </div>
+          <NumberStepper
+            label={`Repeticiones${set.repsPerSide ? " (por lado)" : ""}`}
+            value={reps}
+            step={1}
+            min={1}
+            disabled={isSaving}
+            onChange={setReps}
+          />
         )}
 
-        {/* Weight - only show if the set has weight */}
         {hasWeight && (
-          <div>
-            <label className="mb-3 block text-sm font-medium text-slate-600">
-              Peso (kg)
-            </label>
-            <div className="flex items-center justify-center gap-4">
-              <button
-                onClick={() => adjustValue(setWeight, -2.5, 0)}
-                disabled={isSaving}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-600 transition-colors hover:bg-slate-200 active:bg-slate-300 disabled:opacity-50"
-              >
-                −
-              </button>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.5"
-                min="0"
-                value={weight}
-                disabled={isSaving}
-                onChange={(e) =>
-                  setWeight(Math.max(0, parseFloat(e.target.value) || 0))
-                }
-                className="w-24 rounded-xl border border-slate-200 px-4 py-3 text-center text-2xl font-bold focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50"
-              />
-              <button
-                onClick={() => adjustValue(setWeight, 2.5)}
-                disabled={isSaving}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-600 transition-colors hover:bg-slate-200 active:bg-slate-300 disabled:opacity-50"
-              >
-                +
-              </button>
-            </div>
-            {/* Quick weight presets */}
-            <div className="mt-3 flex justify-center gap-2">
-              {[-5, -2.5, +2.5, +5].map((delta) => (
-                <button
-                  key={delta}
-                  onClick={() => adjustValue(setWeight, delta, 0)}
-                  disabled={isSaving}
-                  className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-200 disabled:opacity-50"
-                >
-                  {delta > 0 ? `+${delta}` : delta}
-                </button>
-              ))}
-            </div>
-          </div>
+          <NumberStepper
+            label="Peso (kg)"
+            value={weight}
+            step={2.5}
+            min={0}
+            inputMode="decimal"
+            disabled={isSaving}
+            quickAdjust={[-5, -2.5, 2.5, 5]}
+            onChange={setWeight}
+          />
         )}
       </div>
 
@@ -260,6 +170,7 @@ function SetEditForm({
 export default function SetEditDrawer({
   set,
   exerciseName,
+  exerciseType,
   totalSets,
   open,
   onOpenChange,
@@ -272,6 +183,7 @@ export default function SetEditDrawer({
           key={set.id}
           set={set}
           exerciseName={exerciseName}
+          exerciseType={exerciseType}
           totalSets={totalSets}
           onOpenChange={onOpenChange}
           onSave={onSave}

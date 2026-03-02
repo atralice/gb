@@ -10,6 +10,7 @@ import SetEditDrawer from "./SetEditDrawer";
 import { completeSetWithValues } from "@/lib/workouts/useSetActions";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
 import type { AvailableWorkoutDay } from "@/lib/workouts/getAvailableWorkoutDays";
+import type { ExerciseType } from "@prisma/client";
 
 type SetForEdit =
   NonNullable<WorkoutDayWithBlocks>["blocks"][number]["exercises"][number]["sets"][number];
@@ -46,6 +47,7 @@ export default function WorkoutViewer({
     set: SetForEdit;
     exerciseName: string;
     allSets: SetForEdit[];
+    exerciseType: ExerciseType;
   } | null>(null);
 
   const blocks = useMemo(
@@ -166,8 +168,8 @@ export default function WorkoutViewer({
           <BlockContent
             block={activeBlock}
             onExerciseTap={setSelectedExercise}
-            onSetDoubleTap={(set, exerciseName, allSets) =>
-              setSelectedSet({ set, exerciseName, allSets })
+            onSetDoubleTap={(set, exerciseName, allSets, exerciseType) =>
+              setSelectedSet({ set, exerciseName, allSets, exerciseType })
             }
           />
         )}
@@ -191,6 +193,7 @@ export default function WorkoutViewer({
       <SetEditDrawer
         set={selectedSet?.set ?? null}
         exerciseName={selectedSet?.exerciseName ?? ""}
+        exerciseType={selectedSet?.exerciseType ?? "weighted"}
         totalSets={selectedSet?.allSets.length ?? 0}
         open={!!selectedSet}
         onOpenChange={(open) => !open && setSelectedSet(null)}

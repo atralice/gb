@@ -8,6 +8,7 @@ import Spinner from "@/components/ui/Spinner";
 import { calculateVolumes, getSetColorClasses } from "@/lib/workouts/setColors";
 import { useSetActions } from "@/lib/workouts/useSetActions";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
+import type { ExerciseType } from "@prisma/client";
 
 const LONG_PRESS_THRESHOLD = 500;
 
@@ -42,7 +43,8 @@ type ExerciseCardProps = {
   onSetDoubleTap: (
     set: SetWithLog,
     exerciseName: string,
-    allSets: SetWithLog[]
+    allSets: SetWithLog[],
+    exerciseType: ExerciseType
   ) => void;
 };
 
@@ -373,10 +375,13 @@ export default function ExerciseCard({
               weightKg={displayWeight}
               durationSeconds={displayDuration}
               repsPerSide={set.repsPerSide}
+              exerciseType={exercise.exerciseType}
               status={setStatus}
               colorClasses={colorClasses}
               onTap={() => handleSetTap(set, index)}
-              onDoubleTap={() => onSetDoubleTap(set, exercise.name, sets)}
+              onDoubleTap={() =>
+                onSetDoubleTap(set, exercise.name, sets, exercise.exerciseType)
+              }
               onLongPress={() => handleSetLongPress(set)}
             />
           );

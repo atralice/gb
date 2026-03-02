@@ -11,6 +11,7 @@ type SetPillProps = {
   weightKg: number | null;
   durationSeconds: number | null;
   repsPerSide: boolean;
+  exerciseType?: "weighted" | "bodyweight" | "timed";
   status?: SetStatus;
   onTap?: () => void;
   onDoubleTap?: () => void;
@@ -26,6 +27,7 @@ export default function SetPill({
   weightKg,
   durationSeconds,
   repsPerSide,
+  exerciseType,
   status = "pending",
   onTap,
   onDoubleTap,
@@ -156,8 +158,12 @@ export default function SetPill({
     [onTap, onDoubleTap]
   );
 
-  const isTimeBased = durationSeconds != null && durationSeconds > 0;
-  const hasWeight = weightKg != null && weightKg > 0;
+  const isTimeBased = exerciseType
+    ? exerciseType === "timed"
+    : durationSeconds != null && durationSeconds > 0;
+  const hasWeight = exerciseType
+    ? exerciseType === "weighted"
+    : weightKg != null && weightKg > 0;
 
   // Determine visual state classes
   const getStateClasses = () => {

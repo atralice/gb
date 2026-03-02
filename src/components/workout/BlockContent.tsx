@@ -1,5 +1,6 @@
 import ExerciseCard from "./ExerciseCard";
 import type { WorkoutDayWithBlocks } from "@/lib/workouts/getWorkoutDay";
+import type { ExerciseType } from "@prisma/client";
 
 type Block = NonNullable<WorkoutDayWithBlocks>["blocks"][number];
 type SetWithLog = Block["exercises"][number]["sets"][number];
@@ -10,7 +11,8 @@ type BlockContentProps = {
   onSetDoubleTap: (
     set: SetWithLog,
     exerciseName: string,
-    allSets: SetWithLog[]
+    allSets: SetWithLog[],
+    exerciseType: ExerciseType
   ) => void;
 };
 

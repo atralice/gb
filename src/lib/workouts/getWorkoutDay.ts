@@ -25,6 +25,7 @@ export const getWorkoutDay = cache(async function getWorkoutDay(
                   instructions: true,
                   videoUrl: true,
                   tags: true,
+                  exerciseType: true,
                 },
               },
               sets: {

@@ -1,7 +1,6 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
 
 type SetUpdate = {
   setId: string;
@@ -25,6 +24,4 @@ export async function updateSets(updates: SetUpdate[]): Promise<void> {
       })
     )
   );
-
-  revalidatePath("/trainer/athletes");
 }

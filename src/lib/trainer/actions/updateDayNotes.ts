@@ -1,7 +1,6 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
 
 export async function updateDayNotes(
   dayId: string,
@@ -11,6 +10,4 @@ export async function updateDayNotes(
     where: { id: dayId },
     data: { notes },
   });
-
-  revalidatePath("/trainer/athletes");
 }

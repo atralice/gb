@@ -27,7 +27,9 @@ import { reorderExercise } from "@/lib/trainer/actions/reorderExercise";
 import { createExercise } from "@/lib/trainer/actions/createExercise";
 import { copyGlobalExercise } from "@/lib/trainer/actions/copyGlobalExercise";
 import { searchExercises } from "@/lib/trainer/searchExercises";
-import SetInput from "./SetInput";
+import { useSaveQueue } from "@/hooks/useSaveQueue";
+import SetCell from "./SetCell";
+import TrainerSetDrawer from "./TrainerSetDrawer";
 import InlineNote from "./InlineNote";
 import ExerciseMenu from "./ExerciseMenu";
 import ExercisePicker from "./ExercisePicker";
@@ -53,8 +55,21 @@ type ExerciseBlock = {
 
 // ── Context ──
 
+type DrawerState = {
+  open: boolean;
+  exerciseName: string;
+  setIndex: number;
+  totalSets: number;
+  setId: string;
+  inputs: SetInputConfig[];
+  values: Record<string, number>;
+};
+
 type WeekDetailContextValue = {
   editedSets: Map<string, EditedSet>;
+  localNotes: Map<string, string>;
+  localBlockComments: Map<string, string>;
+  localExerciseComments: Map<string, string>;
   isPending: boolean;
   onSetChange: (
     setId: string,
@@ -66,11 +81,10 @@ type WeekDetailContextValue = {
   onRemoveExercise: (blockExerciseId: string) => void;
   onReplaceExercise: (blockExerciseId: string) => void;
   onReorder: (exerciseId: string, targetId: string) => void;
-  onBlockCommentChange: (blockId: string, comment: string) => Promise<void>;
-  onExerciseCommentChange: (
-    blockExerciseId: string,
-    comment: string
-  ) => Promise<void>;
+  onBlockCommentChange: (blockId: string, comment: string) => void;
+  onExerciseCommentChange: (blockExerciseId: string, comment: string) => void;
+  onDayNotesChange: (dayId: string, notes: string) => void;
+  openDrawer: (state: DrawerState) => void;
 };
 
 const WeekDetailContext = createContext<WeekDetailContextValue | null>(null);
@@ -109,26 +123,88 @@ function groupExercisesIntoBlocks(
   return blocks;
 }
 
-function getCurrentValue(
-  set: AthleteWeekSet,
-  field: "reps" | "weightKg" | "durationSeconds",
-  editedSets: Map<string, EditedSet>
-): number | null {
+type SetField = "weightKg" | "reps" | "durationSeconds";
+
+type SetInputConfig = {
+  field: SetField;
+  unit: "kg" | "reps" | "s";
+  step: number;
+  min: number;
+  max: number;
+  defaultValue: number;
+};
+
+const exerciseInputs: Record<
+  "weighted" | "bodyweight" | "timed",
+  SetInputConfig[]
+> = {
+  weighted: [
+    {
+      field: "weightKg",
+      unit: "kg",
+      step: 2.5,
+      min: 0,
+      max: 500,
+      defaultValue: 20,
+    },
+    {
+      field: "reps",
+      unit: "reps",
+      step: 1,
+      min: 1,
+      max: 100,
+      defaultValue: 10,
+    },
+  ],
+  bodyweight: [
+    {
+      field: "reps",
+      unit: "reps",
+      step: 1,
+      min: 1,
+      max: 100,
+      defaultValue: 10,
+    },
+  ],
+  timed: [
+    {
+      field: "durationSeconds",
+      unit: "s",
+      step: 5,
+      min: 1,
+      max: 600,
+      defaultValue: 30,
+    },
+  ],
+};
+
+function resolveValue(
+  sets: AthleteWeekSet[],
+  setIndex: number,
+  field: SetField,
+  editedSets: Map<string, EditedSet>,
+  fallbackDefault: number
+): number {
+  const set = sets[setIndex];
+  if (!set) return fallbackDefault;
+  // 1. Check edited value
   const edited = editedSets.get(set.id);
-  if (edited && edited[field] !== undefined) {
-    return edited[field] ?? null;
+  if (edited) {
+    const v = edited[field];
+    if (v !== undefined) return v ?? fallbackDefault;
   }
-  return set[field];
-}
-
-function exerciseHasWeight(exercise: AthleteWeekExercise): boolean {
-  return (
-    exercise.exerciseType === "weighted" || exercise.exerciseType === "timed"
-  );
-}
-
-function exerciseIsTimed(exercise: AthleteWeekExercise): boolean {
-  return exercise.exerciseType === "timed";
+  // 2. Check set's own value
+  const ownValue = set[field];
+  if (ownValue !== null && ownValue !== undefined) return ownValue;
+  // 3. Copy from previous set's persisted value (not edited — avoids cascade)
+  for (let i = setIndex - 1; i >= 0; i--) {
+    const prev = sets[i];
+    if (!prev) continue;
+    const prevValue = prev[field];
+    if (prevValue !== null && prevValue !== undefined) return prevValue;
+  }
+  // 4. Type default
+  return fallbackDefault;
 }
 
 // ── Root component ──
@@ -143,64 +219,31 @@ export default function WeekDetailTable({
   const [editedSets, setEditedSets] = useState<Map<string, EditedSet>>(
     () => new Map()
   );
+  const [localNotes, setLocalNotes] = useState<Map<string, string>>(
+    () => new Map()
+  );
+  const [localBlockComments, setLocalBlockComments] = useState<
+    Map<string, string>
+  >(() => new Map());
+  const [localExerciseComments, setLocalExerciseComments] = useState<
+    Map<string, string>
+  >(() => new Map());
+
   const [isPending, startTransition] = useTransition();
-  const [saveStatus, setSaveStatus] = useState<
-    "idle" | "saving" | "saved" | "timestamp"
-  >("idle");
-  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [pickerState, setPickerState] = useState<{
     open: boolean;
     mode: "add" | "replace";
     blockId?: string;
     blockExerciseId?: string;
   }>({ open: false, mode: "add" });
+  const [drawerState, setDrawerState] = useState<DrawerState | null>(null);
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const { enqueue, status, lastSavedAt } = useSaveQueue();
+
   const editedSetsRef = useRef(editedSets);
-
   useEffect(() => {
     editedSetsRef.current = editedSets;
   }, [editedSets]);
-
-  const flushSave = useCallback(() => {
-    const current = editedSetsRef.current;
-    const updates = Array.from(current.values()).filter(
-      (u) =>
-        u.reps !== undefined ||
-        u.weightKg !== undefined ||
-        u.durationSeconds !== undefined
-    );
-
-    if (updates.length === 0) return;
-
-    setSaveStatus("saving");
-    startTransition(async () => {
-      await updateSets(updates);
-      setEditedSets(new Map());
-      setSaveStatus("saved");
-      setLastSavedAt(new Date());
-      setTimeout(() => setSaveStatus("timestamp"), 2000);
-    });
-  }, [startTransition]);
-
-  // Flush on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      const current = editedSetsRef.current;
-      if (current.size > 0) {
-        const updates = Array.from(current.values()).filter(
-          (u) =>
-            u.reps !== undefined ||
-            u.weightKg !== undefined ||
-            u.durationSeconds !== undefined
-        );
-        if (updates.length > 0) {
-          void updateSets(updates);
-        }
-      }
-    };
-  }, []);
 
   const onSetChange = useCallback(
     (
@@ -215,12 +258,64 @@ export default function WeekDetailTable({
         return next;
       });
 
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        flushSave();
-      }, 800);
+      enqueue("sets", async () => {
+        const current = editedSetsRef.current;
+        const updates = Array.from(current.values()).filter(
+          (u) =>
+            u.reps !== undefined ||
+            u.weightKg !== undefined ||
+            u.durationSeconds !== undefined
+        );
+        if (updates.length === 0) return;
+        await updateSets(updates);
+      });
     },
-    [flushSave]
+    [enqueue]
+  );
+
+  const onDayNotesChange = useCallback(
+    (dayId: string, notes: string) => {
+      setLocalNotes((prev) => {
+        const next = new Map(prev);
+        next.set(dayId, notes);
+        return next;
+      });
+
+      enqueue(`dayNotes:${dayId}`, async () => {
+        await updateDayNotes(dayId, notes);
+      });
+    },
+    [enqueue]
+  );
+
+  const onBlockCommentChange = useCallback(
+    (blockId: string, comment: string) => {
+      setLocalBlockComments((prev) => {
+        const next = new Map(prev);
+        next.set(blockId, comment);
+        return next;
+      });
+
+      enqueue(`blockComment:${blockId}`, async () => {
+        await updateBlockComment(blockId, comment);
+      });
+    },
+    [enqueue]
+  );
+
+  const onExerciseCommentChange = useCallback(
+    (blockExerciseId: string, comment: string) => {
+      setLocalExerciseComments((prev) => {
+        const next = new Map(prev);
+        next.set(blockExerciseId, comment);
+        return next;
+      });
+
+      enqueue(`exerciseComment:${blockExerciseId}`, async () => {
+        await updateExerciseComment(blockExerciseId, comment);
+      });
+    },
+    [enqueue]
   );
 
   const onSeriesChange = useCallback(
@@ -272,22 +367,28 @@ export default function WeekDetailTable({
     [startTransition]
   );
 
-  const onBlockCommentChange = useCallback(
-    async (blockId: string, comment: string) => {
-      await updateBlockComment(blockId, comment);
-    },
-    []
-  );
+  const openDrawer = useCallback((state: DrawerState) => {
+    setDrawerState(state);
+  }, []);
 
-  const onExerciseCommentChange = useCallback(
-    async (blockExerciseId: string, comment: string) => {
-      await updateExerciseComment(blockExerciseId, comment);
+  const handleDrawerSave = useCallback(
+    (values: Record<string, number>) => {
+      if (!drawerState) return;
+      for (const input of drawerState.inputs) {
+        const value = values[input.field];
+        if (value !== undefined) {
+          onSetChange(drawerState.setId, input.field, value);
+        }
+      }
     },
-    []
+    [drawerState, onSetChange]
   );
 
   const ctx: WeekDetailContextValue = {
     editedSets,
+    localNotes,
+    localBlockComments,
+    localExerciseComments,
     isPending,
     onSetChange,
     onSeriesChange,
@@ -297,6 +398,8 @@ export default function WeekDetailTable({
     onReorder,
     onBlockCommentChange,
     onExerciseCommentChange,
+    onDayNotesChange,
+    openDrawer,
   };
 
   return (
@@ -305,16 +408,16 @@ export default function WeekDetailTable({
         {/* Auto-save status indicator — fixed height, always present */}
         <div className="sticky top-0 z-20 flex justify-end px-4 py-2 pointer-events-none h-8">
           <span className="text-xs flex items-center gap-1">
-            {saveStatus === "saving" && (
+            {status === "saving" && (
               <>
                 <span className="inline-block w-3 h-3 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
                 <span className="text-slate-500">Guardando...</span>
               </>
             )}
-            {saveStatus === "saved" && (
+            {status === "saved" && (
               <span className="text-green-600">&#10003; Guardado</span>
             )}
-            {saveStatus === "timestamp" && lastSavedAt && (
+            {status === "timestamp" && lastSavedAt && (
               <span className="text-slate-400">
                 Guardado{" "}
                 {lastSavedAt.toLocaleTimeString("es-AR", {
@@ -341,6 +444,19 @@ export default function WeekDetailTable({
           copyAction={copyGlobalExercise}
           trainerId={trainerId}
         />
+
+        <TrainerSetDrawer
+          open={drawerState?.open ?? false}
+          onOpenChange={(open) => {
+            if (!open) setDrawerState(null);
+          }}
+          exerciseName={drawerState?.exerciseName ?? ""}
+          setIndex={drawerState?.setIndex ?? 0}
+          totalSets={drawerState?.totalSets ?? 0}
+          inputs={drawerState?.inputs ?? []}
+          values={drawerState?.values ?? {}}
+          onSave={handleDrawerSave}
+        />
       </div>
     </WeekDetailContext>
   );
@@ -349,12 +465,15 @@ export default function WeekDetailTable({
 // ── DayDetail ──
 
 function DayDetail({ day }: { day: AthleteWeekDay }) {
+  const { localNotes, onDayNotesChange } = useWeekDetail();
   const blocks = groupExercisesIntoBlocks(day.exercises);
 
   const globalMaxSets = blocks.reduce(
     (max, block) => Math.max(max, block.maxSets),
     0
   );
+
+  const notesValue = localNotes.get(day.id) ?? day.notes ?? null;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -369,8 +488,8 @@ function DayDetail({ day }: { day: AthleteWeekDay }) {
           )}
         </h3>
         <InlineNote
-          value={day.notes ?? null}
-          onSave={(v) => updateDayNotes(day.id, v)}
+          value={notesValue}
+          onSave={(v) => onDayNotesChange(day.id, v)}
           placeholder="+ nota del dia"
         />
       </div>
@@ -378,23 +497,34 @@ function DayDetail({ day }: { day: AthleteWeekDay }) {
       {/* Scrollable table */}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
+          <colgroup>
+            <col className="w-16" />
+            <col />
+            {Array.from({ length: globalMaxSets }, (_, i) => (
+              <col
+                key={`col-serie-${i}`}
+                style={{ width: `${(1 / globalMaxSets) * 60}%` }}
+              />
+            ))}
+            <col className="w-20" />
+          </colgroup>
           <thead>
             <tr className="border-b border-slate-200">
-              <th className="sticky left-0 z-10 bg-white text-left px-3 py-2 text-xs font-medium text-slate-400 w-16 min-w-[64px]">
+              <th className="sticky left-0 z-10 bg-white text-left px-3 py-2 text-xs font-medium text-slate-400">
                 Bloque
               </th>
-              <th className="sticky left-16 z-10 bg-white text-left px-3 py-2 text-xs font-medium text-slate-400 min-w-[140px]">
+              <th className="sticky left-16 z-10 bg-white text-left px-3 py-2 text-xs font-medium text-slate-400">
                 Ejercicio
               </th>
               {Array.from({ length: globalMaxSets }, (_, i) => (
                 <th
                   key={`serie-${i}`}
-                  className="text-center px-3 py-2 text-xs font-medium text-slate-400 min-w-[80px]"
+                  className="text-center px-3 py-2 text-xs font-medium text-slate-400"
                 >
                   Serie {i + 1}
                 </th>
               ))}
-              <th className="px-3 py-2 text-xs font-medium text-slate-400 w-20 min-w-[80px]" />
+              <th className="px-3 py-2 text-xs font-medium text-slate-400" />
             </tr>
           </thead>
           <tbody>
@@ -426,6 +556,8 @@ function BlockRows({
 }) {
   const {
     editedSets,
+    localBlockComments,
+    localExerciseComments,
     isPending,
     onSetChange,
     onSeriesChange,
@@ -435,6 +567,7 @@ function BlockRows({
     onReorder,
     onBlockCommentChange,
     onExerciseCommentChange,
+    openDrawer,
   } = useWeekDetail();
 
   const isLastExercise = (exIndex: number) =>
@@ -442,14 +575,19 @@ function BlockRows({
 
   const rowBg = blockIndex % 2 === 0 ? "bg-white" : "bg-slate-50";
 
+  const blockCommentValue =
+    localBlockComments.get(block.blockId) ?? block.blockComment;
+
   return (
     <>
       {block.exercises.map((exercise, exIndex) => {
         const combinedLabel = `${exercise.blockLabel}${exercise.exerciseOrder}`;
-        const hasWeight = exerciseHasWeight(exercise);
-        const isTimed = exerciseIsTimed(exercise);
+        const inputs = exerciseInputs[exercise.exerciseType];
         const canMoveUp = exIndex > 0;
         const canMoveDown = exIndex < block.exercises.length - 1;
+
+        const exerciseCommentValue =
+          localExerciseComments.get(exercise.id) ?? exercise.exerciseComment;
 
         return (
           <React.Fragment key={exercise.id}>
@@ -459,7 +597,7 @@ function BlockRows({
                 <td className={`sticky left-0 z-10 ${rowBg} px-3 py-1`} />
                 <td colSpan={globalMaxSets + 2} className="px-3 py-1">
                   <InlineNote
-                    value={block.blockComment}
+                    value={blockCommentValue}
                     onSave={(v) => onBlockCommentChange(block.blockId, v)}
                     placeholder="+ nota del bloque"
                   />
@@ -484,7 +622,7 @@ function BlockRows({
 
               {/* Ejercicio column */}
               <td
-                className={`sticky left-16 z-10 ${rowBg} px-3 py-2 text-sm text-slate-900 min-w-[140px] align-top`}
+                className={`sticky left-16 z-10 ${rowBg} px-3 py-2 text-sm text-slate-900 align-top`}
               >
                 <div className="flex items-center gap-1">
                   {(canMoveUp || canMoveDown) && (
@@ -520,7 +658,7 @@ function BlockRows({
                   />
                 </div>
                 <InlineNote
-                  value={exercise.exerciseComment}
+                  value={exerciseCommentValue}
                   onSave={(v) => onExerciseCommentChange(exercise.id, v)}
                   placeholder="+ nota"
                 />
@@ -539,41 +677,85 @@ function BlockRows({
                 return (
                   <td key={set.id} className="px-3 py-2 text-center">
                     <div className="flex flex-col items-center gap-1">
-                      {hasWeight && (
-                        <SetInput
-                          value={getCurrentValue(set, "weightKg", editedSets)}
-                          unit="kg"
-                          step={2.5}
-                          min={0}
-                          max={500}
-                          onChange={(v) => onSetChange(set.id, "weightKg", v)}
-                        />
-                      )}
-                      {isTimed ? (
-                        <SetInput
-                          value={getCurrentValue(
-                            set,
-                            "durationSeconds",
-                            editedSets
-                          )}
-                          unit="s"
-                          step={5}
-                          min={1}
-                          max={600}
-                          onChange={(v) =>
-                            onSetChange(set.id, "durationSeconds", v)
-                          }
-                        />
-                      ) : (
-                        <SetInput
-                          value={getCurrentValue(set, "reps", editedSets)}
-                          unit="reps"
-                          step={1}
-                          min={1}
-                          max={100}
-                          onChange={(v) => onSetChange(set.id, "reps", v)}
-                        />
-                      )}
+                      {inputs.map((input) => {
+                        const resolved = resolveValue(
+                          exercise.sets,
+                          i,
+                          input.field,
+                          editedSets,
+                          input.defaultValue
+                        );
+                        return (
+                          <SetCell
+                            key={input.field}
+                            value={resolved}
+                            unit={input.unit}
+                            step={input.step}
+                            min={input.min}
+                            max={input.max}
+                            onChange={(v) => {
+                              onSetChange(set.id, input.field, v);
+                              // Pin resolved value on sibling null sets so they
+                              // don't inherit the new persisted value after save
+                              if (
+                                set[input.field] === null ||
+                                set[input.field] === undefined
+                              ) {
+                                for (let j = 0; j < exercise.sets.length; j++) {
+                                  const sibling = exercise.sets[j];
+                                  if (!sibling || j === i) continue;
+                                  if (
+                                    sibling[input.field] === null ||
+                                    sibling[input.field] === undefined
+                                  ) {
+                                    const siblingEdited = editedSets.get(
+                                      sibling.id
+                                    );
+                                    if (
+                                      !siblingEdited ||
+                                      siblingEdited[input.field] === undefined
+                                    ) {
+                                      const siblingResolved = resolveValue(
+                                        exercise.sets,
+                                        j,
+                                        input.field,
+                                        editedSets,
+                                        input.defaultValue
+                                      );
+                                      onSetChange(
+                                        sibling.id,
+                                        input.field,
+                                        siblingResolved
+                                      );
+                                    }
+                                  }
+                                }
+                              }
+                            }}
+                            onDoubleClick={() => {
+                              const allValues: Record<string, number> = {};
+                              for (const inp of inputs) {
+                                allValues[inp.field] = resolveValue(
+                                  exercise.sets,
+                                  i,
+                                  inp.field,
+                                  editedSets,
+                                  inp.defaultValue
+                                );
+                              }
+                              openDrawer({
+                                open: true,
+                                exerciseName: exercise.exerciseName,
+                                setIndex: i,
+                                totalSets: exercise.sets.length,
+                                setId: set.id,
+                                inputs,
+                                values: allValues,
+                              });
+                            }}
+                          />
+                        );
+                      })}
                     </div>
                   </td>
                 );
