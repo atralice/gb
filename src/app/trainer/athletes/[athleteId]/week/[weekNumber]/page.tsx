@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import getUser from "@/lib/auth/getUser";
 import { getAthleteWeek } from "@/lib/trainer/getAthleteWeek";
-import WeekDetailTable from "@/components/trainer/WeekDetailTable";
+import WeekDetailTable from "@/components/trainer/weekDetail/WeekDetailTable";
 import PageShell from "@/components/ui/PageShell";
 import WeekNav from "@/components/ui/WeekNav";
 import { format } from "date-fns";
