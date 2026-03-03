@@ -11,14 +11,11 @@ import { removeExerciseFromBlock } from "@/lib/trainer/actions/removeExerciseFro
 import { reorderExercise } from "@/lib/trainer/actions/reorderExercise";
 import { useSaveQueue } from "@/hooks/useSaveQueue";
 import type { EditedSet, SetField } from "./resolveValue";
-import type { WeekDetailActions, DrawerState } from "./weekDetailContext";
-
-type PickerState = {
-  open: boolean;
-  mode: "add" | "replace";
-  blockId?: string;
-  blockExerciseId?: string;
-};
+import type {
+  WeekDetailActions,
+  DrawerState,
+  PickerState,
+} from "./weekDetailContext";
 
 export function useWeekDetailActionsHook({
   editedSets,

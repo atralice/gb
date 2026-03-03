@@ -1,9 +1,15 @@
-// src/components/trainer/weekDetail/weekDetailContext.tsx
 "use client";
 
 import { createContext, use } from "react";
 import type { AthleteWeekExercise } from "@/lib/trainer/getAthleteWeek";
 import type { EditedSet, SetField, SetInputConfig } from "./resolveValue";
+
+export type PickerState = {
+  open: boolean;
+  mode: "add" | "replace";
+  blockId?: string;
+  blockExerciseId?: string;
+};
 
 export type DrawerState = {
   open: boolean;

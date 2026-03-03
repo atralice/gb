@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useTransition } from "react";
+import { useState, useCallback, useMemo, useTransition } from "react";
 import type { AthleteWeekData } from "@/lib/trainer/getAthleteWeek";
 import { addExerciseToBlock } from "@/lib/trainer/actions/addExerciseToBlock";
 import { replaceExercise } from "@/lib/trainer/actions/replaceExercise";
@@ -8,7 +8,11 @@ import { createExercise } from "@/lib/trainer/actions/createExercise";
 import { copyGlobalExercise } from "@/lib/trainer/actions/copyGlobalExercise";
 import { searchExercises } from "@/lib/trainer/searchExercises";
 import type { EditedSet } from "./resolveValue";
-import type { DrawerState, WeekDetailState } from "./weekDetailContext";
+import type {
+  DrawerState,
+  PickerState,
+  WeekDetailState,
+} from "./weekDetailContext";
 import {
   WeekDetailStateContext,
   WeekDetailActionsContext,
@@ -18,13 +22,6 @@ import SaveStatus from "./SaveStatus";
 import DayDetail from "./DayDetail";
 import ExercisePicker from "../ExercisePicker";
 import TrainerSetDrawer from "../TrainerSetDrawer";
-
-type PickerState = {
-  open: boolean;
-  mode: "add" | "replace";
-  blockId?: string;
-  blockExerciseId?: string;
-};
 
 export default function WeekDetailTable({
   data,
@@ -77,26 +74,36 @@ export default function WeekDetailTable({
     });
   };
 
+  const { onSetChange } = actions;
   const handleDrawerSave = useCallback(
     (values: Record<string, number>) => {
       if (!drawerState) return;
       for (const input of drawerState.inputs) {
         const value = values[input.field];
         if (value !== undefined) {
-          actions.onSetChange(drawerState.setId, input.field, value);
+          onSetChange(drawerState.setId, input.field, value);
         }
       }
     },
-    [drawerState, actions]
+    [drawerState, onSetChange]
   );
 
-  const stateValue: WeekDetailState = {
-    editedSets,
-    localNotes,
-    localBlockComments,
-    localExerciseComments,
-    isPending,
-  };
+  const stateValue: WeekDetailState = useMemo(
+    () => ({
+      editedSets,
+      localNotes,
+      localBlockComments,
+      localExerciseComments,
+      isPending,
+    }),
+    [
+      editedSets,
+      localNotes,
+      localBlockComments,
+      localExerciseComments,
+      isPending,
+    ]
+  );
 
   return (
     <WeekDetailActionsContext value={actions}>

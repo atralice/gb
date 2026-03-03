@@ -1,4 +1,3 @@
-// src/components/trainer/weekDetail/resolveValue.ts
 import type { AthleteWeekSet } from "@/lib/trainer/getAthleteWeek";
 
 export type SetField = "weightKg" | "reps" | "durationSeconds";
